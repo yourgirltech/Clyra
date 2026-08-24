@@ -12,7 +12,7 @@ Clyra uses a React frontend, a Python FastAPI backend, and PostgreSQL for persis
 
 Risk scoring is deterministic and computed from rule `issues` produced by the `risk_rules` module.
 
-As of Phase 4, this rule engine (`risk_rules.evaluate_claim_rules` / `score_and_level_from_issues`) is exposed to the AI layer as a **LangGraph tool** rather than a preprocessing step the API runs before returning a response. The Analyzer Agent calls it directly as part of the graph — see [`docs/ai-design.md`](./ai-design.md) for the multi-agent pipeline. The scoring logic itself, and its weights/thresholds, are unchanged: this is a change in how the engine is invoked (as a callable tool from within the agent graph), not a change in what it computes.
+As of Phase 4, this rule engine (`risk_rules.evaluate_claim_rules` / `score_and_level_from_issues`) is called directly by the 01-analyzer-agent in the Commander-orchestrated agent system, rather than run as a preprocessing step the API runs before returning a response. See [`docs/ai-design.md`](./ai-design.md) for the Commander pattern and the numbered specialist agents. The scoring logic itself, and its weights/thresholds, are unchanged: this is a change in how the engine is invoked, not a change in what it computes.
 
 - Severity weights:
 	- `low`: 10 points
