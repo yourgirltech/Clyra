@@ -14,7 +14,7 @@ Commander rule 10 (`reasoning_completed`) — see [00-commander](./00-commander.
 - The underlying `Issue` list, `risk_score`, `risk_level` (passed through for traceability, not recomputed here either)
 
 ## Returns
-- One primary recommended action, and optionally secondary options, each as: `action_type` (`follow_up` | `payer_reminder` | `manual_review_needed` | `no_action_needed`), a rationale that references the specific issues/explanation driving it, and a per-option confidence
+- One primary recommended action, and optionally secondary options, each as: `action_type` (`follow_up` | `payer_reminder` | `manual_review_needed` | `no_action_needed`), a rationale that references the specific issues/explanation driving it, and a per-option confidence. `follow_up`/`payer_reminder` are executable by [04](./04-followup-agent.md)/[05](./05-reminder-agent.md) once approved; `manual_review_needed`/`no_action_needed` are not executable by any agent — once a human approves one of those two, Commander's rule 16 acknowledges the decision and stops, it does not dispatch anywhere.
 - An overall `confidence` for the primary recommendation, expressed as a band: **High / Medium / Low** (an exact numeric cutoff between these bands is a tuning decision left for the runtime-build phase, not fixed here)
 - `low_confidence: true/false` — a simple flag Commander's rule table keys off directly (see rules 12/13 in [00-commander](./00-commander.md))
 

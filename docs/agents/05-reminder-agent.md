@@ -17,7 +17,7 @@ Commander rule 15 (`human_approved` where `recommendation.action_type == payer_r
 ## Returns
 On success:
 - A record of the reminder sent (payer/target, content, timestamp) and an `ActivityLog` entry tying it to the specific approval that authorized it
-- Emits `reminder_completed` to Commander (routes to rule 18 — no further action, claim returns to steady state)
+- Emits `reminder_completed` to Commander (routes to rule 19 — no further action, claim returns to steady state)
 
 On failure: see below.
 
@@ -32,7 +32,7 @@ Identical fallback structure to [04-followup-agent](./04-followup-agent.md), app
 1. **Transient** (payer-facing system/channel temporarily unavailable, timeout): bounded automatic retry (e.g., up to 2 attempts) with backoff. A successful retry logs the retry in the `ActivityLog` entry but does not require a fresh approval.
 2. **Non-transient** (missing required content, approval revoked before execution, invalid target): no retry — it fails immediately rather than repeating a broken attempt.
 
-Once retries are exhausted or a non-transient failure occurs, the agent emits `reminder_failed` with the specific reason and stops. It does not substitute a different channel or action on its own. Commander routes `reminder_failed` straight to [06-escalation-agent](./06-escalation-agent.md) (rule 17), so a human sees exactly what was approved, what was attempted, and why it didn't go through.
+Once retries are exhausted or a non-transient failure occurs, the agent emits `reminder_failed` with the specific reason and stops. It does not substitute a different channel or action on its own. Commander routes `reminder_failed` straight to [06-escalation-agent](./06-escalation-agent.md) (rule 18), so a human sees exactly what was approved, what was attempted, and why it didn't go through.
 
 ## Evidence & audit
 Every attempt (success, retry, or failure) is logged to `ActivityLog`, tied to the approving human and timestamp — reminders are payer-facing communication, so the audit trail needs to make it unambiguous exactly what was sent, when, and under whose authorization.

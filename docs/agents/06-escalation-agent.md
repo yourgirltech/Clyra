@@ -13,9 +13,11 @@ Every one of Commander's non-happy-path routes — see [00-commander](./00-comma
 - Rule 9 — `reasoning_error` (from [02-reasoning-agent](./02-reasoning-agent.md))
 - Rule 11 — `recommendation_error` (from [03-recommendation-agent](./03-recommendation-agent.md))
 - Rule 13 — `low_confidence` (from [03-recommendation-agent](./03-recommendation-agent.md))
-- Rule 16 — `followup_execution_failed` (from [04-followup-agent](./04-followup-agent.md), retries exhausted)
-- Rule 17 — `reminder_execution_failed` (from [05-reminder-agent](./05-reminder-agent.md), retries exhausted)
-- Rule 19 — `unclassified_trigger` (nothing else matched)
+- Rule 17 — `followup_execution_failed` (from [04-followup-agent](./04-followup-agent.md), retries exhausted)
+- Rule 18 — `reminder_execution_failed` (from [05-reminder-agent](./05-reminder-agent.md), retries exhausted)
+- Rule 20 — `unclassified_trigger` (nothing else matched)
+
+Note: Phase 4 also routes rules 14/15 (`human_approved` for a `follow_up`/`payer_reminder` recommendation) here temporarily, with reason `agent_not_yet_implemented`, until [04-followup-agent](./04-followup-agent.md)/[05-reminder-agent](./05-reminder-agent.md) exist — see the "Design scope vs. Phase 4 implementation" note in [00-commander](./00-commander.md).
 
 ## Receives
 - `claim_id` if one is available (rule 1 may not have a resolvable claim at all — that's still a valid escalation)

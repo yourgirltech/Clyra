@@ -17,7 +17,7 @@ Commander rule 14 (`human_approved` where `recommendation.action_type == follow_
 ## Returns
 On success:
 - A `FollowUp` record (matching the existing `FollowUp` model: `claim_id`, `note`, `due_at`) and an `ActivityLog` entry recording what was done, by which approval, and when
-- Emits `followup_completed` to Commander (routes to rule 18 — no further action, claim returns to steady state)
+- Emits `followup_completed` to Commander (routes to rule 19 — no further action, claim returns to steady state)
 
 On failure: see below — it never reports success unless the follow-up record was actually durably created.
 
@@ -33,7 +33,7 @@ Failures are split into two kinds, handled differently:
 1. **Transient** (e.g., a downstream system/dependency is temporarily unavailable, a timeout): the agent retries automatically, a small bounded number of times (e.g., up to 2 retries) with backoff between attempts. If a retry succeeds, it proceeds as a normal success — the retry itself is logged in the `ActivityLog` entry for transparency, but it is not treated as a new event requiring a fresh human approval.
 2. **Non-transient** (e.g., the approved action is missing required fields, the approval was revoked between routing and execution, a validation error): no retry. Retrying a broken input doesn't fix it, and doing so would just delay the human finding out.
 
-If all permitted retries are exhausted (case 1) or a non-transient failure occurs (case 2), the agent emits `followup_failed` with the specific reason, and stops — it does not fall back to a different action type or attempt an alternative on its own initiative. Commander routes `followup_failed` straight to [06-escalation-agent](./06-escalation-agent.md) (rule 16), where a human sees exactly what was approved, what was attempted, and why it didn't go through.
+If all permitted retries are exhausted (case 1) or a non-transient failure occurs (case 2), the agent emits `followup_failed` with the specific reason, and stops — it does not fall back to a different action type or attempt an alternative on its own initiative. Commander routes `followup_failed` straight to [06-escalation-agent](./06-escalation-agent.md) (rule 17), where a human sees exactly what was approved, what was attempted, and why it didn't go through.
 
 ## Evidence & audit
 Every execution attempt (success, retry, or failure) is logged to `ActivityLog` with enough detail to answer "what did the system actually do with this human's approval" after the fact — this agent's actions are the one place in the pipeline with real-world side effects, so its audit trail has to be complete, not best-effort.
