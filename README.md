@@ -1,0 +1,30 @@
+# Clyra
+
+Clyra is a U.S.-focused AI claims operations assistant for healthcare billing and revenue-cycle teams, designed to support claim review, AI-guided recommendations, and transparent human approval before any consequential action is taken. The MVP uses only synthetic healthcare claims data so the demo remains safe, privacy-compliant, and realistic without exposing real PHI.
+
+Demo environment — uses synthetic healthcare claims data.
+
+To run the frontend locally, open a terminal in the `frontend` folder and run `npm install`, then `npm run dev`. To run the backend locally, open a terminal in the `backend` folder, create or activate a virtual environment, install dependencies from `requirements.txt`, and start the app with `uvicorn main:app --reload --host 0.0.0.0 --port 8000`.
+
+Python runtime requirement: use Python 3.13.x for this project. Python 3.14 on Windows can fail while compiling Pydantic dependencies, which causes the backend setup to break before the app starts. This project is pinned to 3.13 to avoid that known compile issue on fresh clones.
+
+## Checking for a stuck process on Windows before starting the backend
+
+`uvicorn` fails to start with `WinError 10048` ("only one usage of each socket address is normally permitted") when something is already bound to port 8000. This is an environment issue, not a code bug — before starting the backend, check for and clear a stuck process:
+
+```powershell
+# Find what's listening on port 8000
+Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue
+
+# Or, using netstat
+netstat -ano | findstr :8000
+```
+
+The last column is the PID. Look up and stop it:
+
+```powershell
+Get-Process -Id <PID>
+Stop-Process -Id <PID> -Force
+```
+
+A leftover `python.exe` process from a previous `python main.py` or `uvicorn` run (e.g. one left running after a terminal was closed without Ctrl+C) is the most common cause. Always run the backend the documented way — `uvicorn main:app --reload --host 0.0.0.0 --port 8000` — rather than `python main.py`, so `--reload`'s process lifecycle is managed correctly and Ctrl+C actually stops it.
