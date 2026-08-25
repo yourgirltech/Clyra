@@ -1,18 +1,111 @@
+import { useState } from 'react'
+import { Bot, Lock, Send, Sparkles, User } from 'lucide-react'
+
+type ChatMessage = {
+  role: 'assistant' | 'user'
+  text: string
+}
+
+const seedMessages: ChatMessage[] = [
+  {
+    role: 'assistant',
+    text: "Hi, I'm the Clyra assistant. Once the agent system is wired up, I'll be able to answer questions about specific claims, risk factors, and portfolio metrics — grounded in the same rule engine that powers the dashboard.",
+  },
+]
+
+const sampleQuestions = [
+  'How many claims are At Risk right now?',
+  'Why would a claim be flagged for missing documentation?',
+  'Which payer has the most Needs Review claims?',
+]
+
 export function AIAssistant() {
+  const [draft, setDraft] = useState('')
+
   return (
     <div className="p-6 md:p-8">
-      <div className="mb-6">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-indigo-600">AI Review</p>
-        <h1 className="mt-2 text-3xl font-semibold text-slate-900">AI Assistant</h1>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-indigo-600">AI Review</p>
+          <h1 className="mt-2 text-3xl font-semibold text-slate-900">AI Assistant</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Ask about a claim, a risk factor, or portfolio metrics. Read-only — it never takes action for you.
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+          <Lock className="h-3.5 w-3.5" />
+          Not yet connected
+        </span>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-slate-600 shadow-sm">
-        <p className="text-lg font-medium text-slate-700">AI Assistant — agentic reasoning layer, coming next</p>
-        <p className="mt-2 text-sm text-slate-500">
-          A Commander-routed agent system (Analyzer → Reasoning → Recommendation agents, plus a tool-calling
-          Assistant agent) will surface explainable recommendations and rationale cards here, subject to
-          human approval.
-        </p>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_280px]">
+        <div className="flex h-[560px] flex-col rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            {seedMessages.map((m, i) => (
+              <div key={i} className={`flex items-start gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                    m.role === 'assistant' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {m.role === 'assistant' ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                </div>
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    m.role === 'assistant'
+                      ? 'bg-slate-50 text-slate-700'
+                      : 'bg-indigo-500 text-white'
+                  }`}
+                >
+                  {m.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-slate-100 p-4">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 opacity-60">
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                disabled
+                placeholder="Assistant agent not connected yet"
+                className="w-full border-0 bg-transparent text-sm text-slate-600 placeholder:text-slate-400 focus:outline-none"
+              />
+              <button
+                disabled
+                className="flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg bg-indigo-300 text-white"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <Sparkles className="h-4 w-4 text-indigo-500" />
+              What it will answer
+            </div>
+            <ul className="mt-3 space-y-2.5">
+              {sampleQuestions.map((q) => (
+                <li
+                  key={q}
+                  className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-500"
+                >
+                  {q}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/60 p-5 text-sm text-indigo-700/80">
+            Backed by the Commander-routed <span className="font-medium text-indigo-900">07-assistant-agent</span>,
+            with read-only tool access to claim lookups, the rule engine, and dashboard metrics. Design in{' '}
+            <code className="rounded bg-white/60 px-1 py-0.5 text-xs">docs/agents/07-assistant-agent.md</code>.
+          </div>
+        </div>
       </div>
     </div>
   )

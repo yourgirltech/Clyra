@@ -1,7 +1,9 @@
 import { useReactTable, type SortingState, flexRender } from '@tanstack/react-table'
 import type { ColumnDef, CellContext } from '@tanstack/table-core'
 import { getCoreRowModel, getSortedRowModel, getPaginationRowModel } from '@tanstack/table-core'
+import { ChevronLeft, ChevronRight, ChevronsUpDown } from 'lucide-react'
 import type { Claim } from '../services/claims'
+import { RiskBadge, StatusBadge } from './ui/Badge'
 
 type ClaimsTableProps = {
   items: Claim[]
@@ -62,71 +64,81 @@ export default function ClaimsTable({ items, pageIndex, pageSize, total, onPageC
 
   return (
     <>
-      <table className="w-full table-auto">
-        <thead>
-          {table.getHeaderGroups().map(hg => (
-            <tr key={hg.id}>
-              {hg.headers.map(h => (
-                <th
-                  key={h.id}
-                  className="text-left p-2 text-sm text-slate-500"
-                  {...(h.column.getCanSort?.() ? { onClick: h.column.getToggleSortingHandler() } : {})}
-                  style={{ cursor: h.column.getCanSort?.() ? 'pointer' : 'default' }}
-                >
-                  {h.isPlaceholder ? null : (
-                    <div className="flex items-center gap-2">
-                      {flexRender(h.column.columnDef.header, h.getContext())}
-                      {h.column.getIsSorted ? (
-                        <span className="text-xs text-slate-400">{h.column.getIsSorted() === 'asc' ? '▲' : h.column.getIsSorted() === 'desc' ? '▼' : ''}</span>
-                      ) : null}
-                    </div>
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map(row => (
-            <tr key={row.id} className="cursor-pointer hover:bg-slate-50" onClick={() => onRowClick(row.original as Claim)}>
-              {row.getVisibleCells().map(cell => (
-                <td key={cell.id} className="p-2 text-sm text-slate-700">
-                  {cell.column.id === 'status' ? (
-                    String(cell.getValue()) === 'Denied' ? (
-                      <span className="bg-red-200 text-red-800 inline-flex items-center rounded px-2 py-1 text-xs font-medium">{String(cell.getValue())}</span>
-                    ) : String(cell.getValue()) === 'Paid' ? (
-                      <span className="bg-green-200 text-green-800 inline-flex items-center rounded px-2 py-1 text-xs font-medium">{String(cell.getValue())}</span>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] table-auto">
+          <thead>
+            {table.getHeaderGroups().map(hg => (
+              <tr key={hg.id} className="border-b border-slate-100">
+                {hg.headers.map(h => (
+                  <th
+                    key={h.id}
+                    className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-400 select-none"
+                    {...(h.column.getCanSort?.() ? { onClick: h.column.getToggleSortingHandler() } : {})}
+                    style={{ cursor: h.column.getCanSort?.() ? 'pointer' : 'default' }}
+                  >
+                    {h.isPlaceholder ? null : (
+                      <div className="flex items-center gap-1.5">
+                        {flexRender(h.column.columnDef.header, h.getContext())}
+                        {h.column.getCanSort?.() && (
+                          <span className="text-slate-300">
+                            {h.column.getIsSorted() === 'asc' ? (
+                              <ChevronRight className="h-3.5 w-3.5 -rotate-90" />
+                            ) : h.column.getIsSorted() === 'desc' ? (
+                              <ChevronRight className="h-3.5 w-3.5 rotate-90" />
+                            ) : (
+                              <ChevronsUpDown className="h-3.5 w-3.5" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {table.getRowModel().rows.map(row => (
+              <tr key={row.id} className="cursor-pointer transition hover:bg-slate-50" onClick={() => onRowClick(row.original as Claim)}>
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id} className="px-3 py-3 text-sm text-slate-700">
+                    {cell.column.id === 'status' ? (
+                      <StatusBadge status={String(cell.getValue())} />
+                    ) : cell.column.id === 'risk_level' ? (
+                      <RiskBadge level={String(cell.getValue())} />
                     ) : (
-                      <span className="bg-amber-200 text-amber-800 inline-flex items-center rounded px-2 py-1 text-xs font-medium">{String(cell.getValue())}</span>
-                    )
-                  ) : cell.column.id === 'risk_level' ? (
-                    String(cell.getValue()) === 'High' ? (
-                      <span className="bg-red-200 text-red-800 inline-flex items-center rounded px-2 py-1 text-xs font-medium">{String(cell.getValue())}</span>
-                    ) : String(cell.getValue()) === 'Medium' ? (
-                      <span className="bg-amber-200 text-amber-800 inline-flex items-center rounded px-2 py-1 text-xs font-medium">{String(cell.getValue())}</span>
-                    ) : (
-                      <span className="bg-green-200 text-green-800 inline-flex items-center rounded px-2 py-1 text-xs font-medium">{String(cell.getValue())}</span>
-                    )
-                  ) : (
-                    flexRender(cell.column.columnDef.cell, cell.getContext())
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                      flexRender(cell.column.columnDef.cell, cell.getContext())
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <div className="mt-3 flex items-center justify-between">
-        <div>
-          <button className="mr-2 rounded border px-3 py-1" onClick={() => onPageChange(Math.max(0, pageIndex - 1))} disabled={pageIndex <= 0}>
+      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+        <div className="flex items-center gap-2">
+          <button
+            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+            onClick={() => onPageChange(Math.max(0, pageIndex - 1))}
+            disabled={pageIndex <= 0}
+          >
+            <ChevronLeft className="h-4 w-4" />
             Previous
           </button>
-          <button className="rounded border px-3 py-1" onClick={() => onPageChange(Math.min(pageCount - 1, pageIndex + 1))} disabled={pageIndex >= pageCount - 1}>
+          <button
+            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+            onClick={() => onPageChange(Math.min(pageCount - 1, pageIndex + 1))}
+            disabled={pageIndex >= pageCount - 1}
+          >
             Next
+            <ChevronRight className="h-4 w-4" />
           </button>
         </div>
-        <div className="text-sm text-slate-500">Page {pageIndex + 1} of {pageCount}</div>
+        <div className="text-sm text-slate-500">
+          Page <span className="font-medium text-slate-700">{pageIndex + 1}</span> of {pageCount}
+        </div>
       </div>
     </>
   )

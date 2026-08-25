@@ -1,5 +1,6 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import { AppLayout } from '../components/layout/AppLayout'
+import { HomePage } from '../pages/HomePage'
 import { Dashboard } from '../pages/Dashboard'
 import { Claims } from '../pages/Claims'
 import { ClaimDetail } from '../pages/ClaimDetail'
@@ -9,8 +10,8 @@ import { Settings } from '../pages/Settings'
 export function AppRouter() {
   return (
     <Routes>
+      <Route path="/" element={<HomePage />} />
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/claims" element={<Claims />} />
         <Route path="/claims/:claimId" element={<ClaimDetail />} />
