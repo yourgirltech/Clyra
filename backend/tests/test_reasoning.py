@@ -11,7 +11,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.commander import AGENT_ESCALATION, AGENT_REASONING, commander_route
+from app.agents.commander import (
+    AGENT_ESCALATION,
+    AGENT_FOLLOWUP,
+    AGENT_REASONING,
+    AGENT_RECOMMENDATION,
+    AGENT_REMINDER,
+    commander_route,
+)
 from app.agents.dispatch import route_and_dispatch
 from app.agents.reasoning import (
     IssueExplanation,
@@ -241,3 +248,87 @@ def test_rule08_missing_required_inputs_raises_rather_than_guessing():
     }
     with pytest.raises(ValueError):
         route_and_dispatch(claim_state, {"type": "analyzer_completed", "payload": {}})
+
+
+# ---------------------------------------------------------------------------
+# 03-06 remain stubbed. Same guard pattern as the rule-6/rule-8 "is it real"
+# tests above, just asserting the opposite: dispatch_stub's placeholder
+# string, never a real result object.
+#
+# 03-recommendation-agent (rule 10) and 06-escalation-agent (rules 7, 9, and
+# the rule 14/15 Phase-4 carve-out) are each directly reachable through
+# Commander's decision.decision, so route_and_dispatch's fallback branch
+# (`dispatch_stub(decision.decision)`) is what's under test for them.
+#
+# 04-followup-agent and 05-reminder-agent are different: Commander's Phase 4
+# build scope means decision.decision can never actually equal AGENT_FOLLOWUP
+# or AGENT_REMINDER in the first place (see docs/agents/00-commander.md's
+# "Design scope vs. Phase 4 implementation") — an approved follow_up/
+# payer_reminder routes to escalation instead (rules 14/15), which
+# test_commander.py already proves at the routing level
+# (test_rule14_..._not_04 / test_rule15_..._not_05). The two rule-14/15 cases
+# below re-confirm the same thing one layer up, at dispatch: since Commander
+# itself never emits AGENT_FOLLOWUP/AGENT_REMINDER as a decision, dispatch.py
+# has no real-agent branch for either — there's nothing to stub around.
+# ---------------------------------------------------------------------------
+
+def _claim_state(**overrides):
+    state = {
+        "claim_id": "CL-1",
+        "status": "Submitted",
+        "risk_score": 50,
+        "risk_level": "High",
+        "latest_issues": [],
+        "latest_recommendation": None,
+        "agent_run_in_progress": False,
+    }
+    state.update(overrides)
+    return state
+
+
+@pytest.mark.parametrize(
+    "rule,trigger,claim_state,expected_agent",
+    [
+        (10, {"type": "reasoning_completed", "payload": {}}, _claim_state(), AGENT_RECOMMENDATION),
+        (7, {"type": "analyzer_failed", "payload": {}}, _claim_state(), AGENT_ESCALATION),
+        (9, {"type": "reasoning_failed", "payload": {}}, _claim_state(), AGENT_ESCALATION),
+        (
+            14,
+            {"type": "human_approved", "payload": {}},
+            _claim_state(latest_recommendation={"action_type": "follow_up", "low_confidence": False, "approval_status": "pending"}),
+            AGENT_ESCALATION,
+        ),
+        (
+            15,
+            {"type": "human_approved", "payload": {}},
+            _claim_state(latest_recommendation={"action_type": "payer_reminder", "low_confidence": False, "approval_status": "pending"}),
+            AGENT_ESCALATION,
+        ),
+    ],
+)
+def test_agents_beyond_02_are_still_stubbed(rule, trigger, claim_state, expected_agent):
+    decision, result = route_and_dispatch(claim_state, trigger)
+
+    assert decision.rule == rule
+    assert decision.decision == expected_agent
+    assert result == f"would call: {expected_agent}"
+    # Never the real dataclasses 03/04/05/06 would eventually return.
+    assert not hasattr(result, "issue_explanations")
+    assert not hasattr(result, "risk_score")
+
+
+def test_04_and_05_are_never_even_reachable_as_a_commander_decision():
+    # Direct confirmation that AGENT_FOLLOWUP/AGENT_REMINDER never appear as
+    # decision.decision in Phase 4 — dispatch has no real branch for them
+    # because Commander itself never routes there (rules 14/15 carve-out).
+    follow_up_state = _claim_state(
+        latest_recommendation={"action_type": "follow_up", "low_confidence": False, "approval_status": "pending"}
+    )
+    decision = commander_route(follow_up_state, {"type": "human_approved", "payload": {}})
+    assert decision.decision != AGENT_FOLLOWUP
+
+    reminder_state = _claim_state(
+        latest_recommendation={"action_type": "payer_reminder", "low_confidence": False, "approval_status": "pending"}
+    )
+    decision = commander_route(reminder_state, {"type": "human_approved", "payload": {}})
+    assert decision.decision != AGENT_REMINDER
