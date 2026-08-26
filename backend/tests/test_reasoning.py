@@ -15,7 +15,6 @@ from app.agents.commander import (
     AGENT_ESCALATION,
     AGENT_FOLLOWUP,
     AGENT_REASONING,
-    AGENT_RECOMMENDATION,
     AGENT_REMINDER,
     commander_route,
 )
@@ -251,14 +250,17 @@ def test_rule08_missing_required_inputs_raises_rather_than_guessing():
 
 
 # ---------------------------------------------------------------------------
-# 03-06 remain stubbed. Same guard pattern as the rule-6/rule-8 "is it real"
+# 04-06 remain stubbed. Same guard pattern as the rule-6/rule-8 "is it real"
 # tests above, just asserting the opposite: dispatch_stub's placeholder
 # string, never a real result object.
 #
-# 03-recommendation-agent (rule 10) and 06-escalation-agent (rules 7, 9, and
-# the rule 14/15 Phase-4 carve-out) are each directly reachable through
-# Commander's decision.decision, so route_and_dispatch's fallback branch
-# (`dispatch_stub(decision.decision)`) is what's under test for them.
+# Rule 10 (03-recommendation-agent) is deliberately NOT in this list anymore
+# — it went real in build step 4. Its own "not a stub" coverage lives in
+# test_recommendation.py, same pattern as rule 6 (test_analyzer.py) and rule 8
+# (test_reasoning.py) before it. 06-escalation-agent (rules 7, 9, 11, and the
+# rule 14/15 Phase-4 carve-out) is directly reachable through Commander's
+# decision.decision, so route_and_dispatch's fallback branch
+# (`dispatch_stub(decision.decision)`) is what's under test for it.
 #
 # 04-followup-agent and 05-reminder-agent are different: Commander's Phase 4
 # build scope means decision.decision can never actually equal AGENT_FOLLOWUP
@@ -289,9 +291,9 @@ def _claim_state(**overrides):
 @pytest.mark.parametrize(
     "rule,trigger,claim_state,expected_agent",
     [
-        (10, {"type": "reasoning_completed", "payload": {}}, _claim_state(), AGENT_RECOMMENDATION),
         (7, {"type": "analyzer_failed", "payload": {}}, _claim_state(), AGENT_ESCALATION),
         (9, {"type": "reasoning_failed", "payload": {}}, _claim_state(), AGENT_ESCALATION),
+        (11, {"type": "recommendation_failed", "payload": {}}, _claim_state(), AGENT_ESCALATION),
         (
             14,
             {"type": "human_approved", "payload": {}},
@@ -306,14 +308,14 @@ def _claim_state(**overrides):
         ),
     ],
 )
-def test_agents_beyond_02_are_still_stubbed(rule, trigger, claim_state, expected_agent):
+def test_agents_beyond_03_are_still_stubbed(rule, trigger, claim_state, expected_agent):
     decision, result = route_and_dispatch(claim_state, trigger)
 
     assert decision.rule == rule
     assert decision.decision == expected_agent
     assert result == f"would call: {expected_agent}"
-    # Never the real dataclasses 03/04/05/06 would eventually return.
-    assert not hasattr(result, "issue_explanations")
+    # Never the real dataclasses 04/05/06 would eventually return.
+    assert not hasattr(result, "action_type")
     assert not hasattr(result, "risk_score")
 
 

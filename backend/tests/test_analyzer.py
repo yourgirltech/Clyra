@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from app.agents.analyzer import AnalyzerResult, run_analyzer
-from app.agents.commander import AGENT_ANALYZER, AGENT_RECOMMENDATION
+from app.agents.commander import AGENT_ANALYZER, AGENT_ESCALATION
 from app.agents.dispatch import route_and_dispatch
 
 
@@ -150,15 +150,17 @@ def test_rule06_missing_required_inputs_raises_rather_than_guessing():
 
 
 def test_only_analyzer_is_real_agents_beyond_it_still_stubbed():
-    # Rule 10 routes to 03-recommendation-agent, which is not built yet —
-    # dispatch must still return the stub placeholder for it. (Rule 8's
-    # 02-reasoning-agent became real in a later build step — see
-    # test_reasoning.py for its own "not a stub" coverage.)
-    decision, result = route_and_dispatch(make_claim_state(), make_trigger("reasoning_completed"))
+    # Rule 7 routes to 06-escalation-agent, which is not built yet — dispatch
+    # must still return the stub placeholder for it. (Rule 8's
+    # 02-reasoning-agent and rule 10's 03-recommendation-agent both became
+    # real in later build steps — see test_reasoning.py / test_recommendation.py
+    # for their own "not a stub" coverage, and each file's own "beyond X still
+    # stubbed" guard for the fuller picture.)
+    decision, result = route_and_dispatch(make_claim_state(), make_trigger("analyzer_failed"))
 
-    assert decision.rule == 10
-    assert decision.decision == AGENT_RECOMMENDATION
-    assert result == f"would call: {AGENT_RECOMMENDATION}"
+    assert decision.rule == 7
+    assert decision.decision == AGENT_ESCALATION
+    assert result == f"would call: {AGENT_ESCALATION}"
 
 
 # ---------------------------------------------------------------------------

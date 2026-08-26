@@ -1,7 +1,7 @@
 # 03 — Recommendation Agent
 
 ## Status
-Planning document. No runtime has been chosen.
+Implemented. `backend/app/agents/recommendation.py` (`run_recommendation`) calls the Claude API (`claude-opus-5`, structured output) exactly as scoped below — takes 02's explanation output, produces one primary action_type/rationale/confidence (plus optional secondary options), and never overrides the confidence the model reports: a Low result is always a valid `RecommendationResult`, never a failure. Rationale citations are validated against the given Issue list the same way 02's explanations are. Commander's rule 10 dispatches to it for real via `backend/app/agents/dispatch.py`; rules 12/13 (confidence routing) and 14/15 (the Phase 4 follow_up/payer_reminder carve-out) are now exercised with real recommendation output, not synthetic test data. Covered by `backend/tests/test_recommendation.py` (mocked) and one real, opt-in two-call Claude API chain (02 then 03) in `backend/tests/test_recommendation_live.py` against CL-10002. 04-06 are still `dispatch_stub`.
 
 ## Role
 The Recommendation Agent turns the Reasoning Agent's explanation into a concrete, actionable recommendation with a stated confidence level. It is the last stop before a human is asked to approve or decline something — it proposes, it never executes.
