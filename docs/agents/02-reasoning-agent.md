@@ -1,7 +1,7 @@
 # 02 — Reasoning Agent
 
 ## Status
-Planning document. No runtime has been chosen.
+Implemented. `backend/app/agents/reasoning.py` (`run_reasoning`) calls the Claude API (`claude-opus-5`, structured output) exactly as scoped below — grounded strictly in the given Issue list, no tool access, no DB queries. Every model response is validated against the input's issue_types before being trusted; an ungrounded response is treated as a failure, not passed through. Commander's rule 8 dispatches to it for real via `backend/app/agents/dispatch.py`. Covered by `backend/tests/test_reasoning.py` (mocked: grounding, invented-issue rejection, empty-issues short-circuit, malformed-input routing to rule 9) and one real, opt-in Claude API call in `backend/tests/test_reasoning_live.py` against CL-10002's actual analyzer output. 03-06 are still `dispatch_stub`.
 
 ## Role
 The Reasoning Agent is the first place an LLM enters the pipeline. Its only job is to take the Analyzer's deterministic findings and explain them in plain language — grounded strictly in what it was handed. It does not add facts, does not look anything up on its own, and does not decide what should happen next.

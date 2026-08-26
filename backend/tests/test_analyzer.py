@@ -7,7 +7,9 @@ Three layers, per the build-step-2 scope:
    tests/test_risk_engine.py's cases).
 2. Commander's rule 6 (claim_created / claim_evidence_updated) actually
    invokes the analyzer now, in place of the "would call: 01-analyzer-agent"
-   stub — while every other agent commander could route to stays stubbed.
+   stub — while agents beyond it (e.g. rule 10 -> 03-recommendation-agent)
+   stay stubbed. (02-reasoning-agent, rule 8, became real in a later build
+   step — its own "not a stub" coverage lives in test_reasoning.py.)
 3. A real seeded claim, read from the actual demo Postgres database, produces
    the expected issues/risk_score/risk_level through this exact path — not
    just synthetic dicts.
@@ -18,7 +20,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from app.agents.analyzer import AnalyzerResult, run_analyzer
-from app.agents.commander import AGENT_ANALYZER, AGENT_REASONING
+from app.agents.commander import AGENT_ANALYZER, AGENT_RECOMMENDATION
 from app.agents.dispatch import route_and_dispatch
 
 
@@ -147,15 +149,16 @@ def test_rule06_missing_required_inputs_raises_rather_than_guessing():
         route_and_dispatch(make_claim_state(), make_trigger("claim_created"))
 
 
-def test_only_analyzer_is_real_every_other_agent_still_stubbed():
-    # Rule 8 routes to 02-reasoning-agent, which is not built yet — dispatch
-    # must still return the stub placeholder for it, proving this build step
-    # wired up 01-analyzer-agent only, exactly as scoped.
-    decision, result = route_and_dispatch(make_claim_state(), make_trigger("analyzer_completed"))
+def test_only_analyzer_is_real_agents_beyond_it_still_stubbed():
+    # Rule 10 routes to 03-recommendation-agent, which is not built yet —
+    # dispatch must still return the stub placeholder for it. (Rule 8's
+    # 02-reasoning-agent became real in a later build step — see
+    # test_reasoning.py for its own "not a stub" coverage.)
+    decision, result = route_and_dispatch(make_claim_state(), make_trigger("reasoning_completed"))
 
-    assert decision.rule == 8
-    assert decision.decision == AGENT_REASONING
-    assert result == f"would call: {AGENT_REASONING}"
+    assert decision.rule == 10
+    assert decision.decision == AGENT_RECOMMENDATION
+    assert result == f"would call: {AGENT_RECOMMENDATION}"
 
 
 # ---------------------------------------------------------------------------

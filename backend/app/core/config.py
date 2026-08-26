@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     debug: bool = True
     database_url: str = "postgresql+psycopg://clyra:clyra@localhost:5432/clyra"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    anthropic_api_key: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
