@@ -1,7 +1,7 @@
 # 06 — Escalation Agent
 
 ## Status
-Planning document. No runtime has been chosen.
+Implemented. `backend/app/agents/escalation.py` (`run_escalation`) writes a durable record to the new `escalations` table (migration `1263c4b4dc6d`) — no LLM call, no suggested resolution, ever. Severity is derived from the reason code and the originating agent/rule is recorded for reviewer context. If the primary write itself fails, a `CRITICAL`-level fallback log fires so an escalation is never silently lost. Commander's rules 1, 7, 9, 11, 13, 14, and 15 (the Phase 4 carve-out) and 20 all dispatch to it for real via `backend/app/agents/dispatch.py`. Covered by `backend/tests/test_escalation.py`: one real-DB-write test per rule, a write-failure/fallback-log test, and one full end-to-end printout of a persisted record. As of this build step, every agent Commander can route to in Phase 4 (01, 02, 03, 06) is real — only 04-followup-agent and 05-reminder-agent remain out of reach, by Commander's own Phase 4 design (see [00-commander](./00-commander.md)).
 
 ## Role
 The Escalation Agent is the system's safety net. It runs whenever something can't be safely handled by the deterministic/agent pipeline on its own — an outright error, a low-confidence recommendation, a failed execution, or an event Commander doesn't even recognize. Its entire job is to flag the situation for a human, with full context, and stop. It never guesses at a resolution, never retries the thing that failed, and never produces a recommendation of its own — that would just be re-introducing the uncertainty this agent exists to contain.

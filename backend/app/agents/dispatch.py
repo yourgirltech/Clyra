@@ -3,21 +3,26 @@
 Commander (`app.agents.commander.commander_route`) only decides *whether* the
 pipeline continues and *which* agent runs next — it never calls one. This
 module is the thin seam that does: given a routing decision, either run a
-real agent (01-analyzer-agent, 02-reasoning-agent, 03-recommendation-agent)
-or fall back to `dispatch_stub` for every agent that isn't built yet.
+real agent (01-analyzer-agent, 02-reasoning-agent, 03-recommendation-agent,
+06-escalation-agent) or fall back to `dispatch_stub` for every agent that
+isn't built yet.
 
-Build step 4: 01, 02, and 03 are real. Extending this to 04+ is just adding
-another `if decision.decision == AGENT_X` branch here — Commander and each
-agent's own module stay untouched.
+Build step 5: 01, 02, 03, and 06 are real. 04-followup-agent and
+05-reminder-agent remain unreachable in Phase 4 by Commander's own design
+(the rule 14/15 carve-out routes to 06 instead) — extending this to them in
+Phase 6 is just adding another `if decision.decision == AGENT_X` branch here;
+Commander and each agent's own module stay untouched.
 """
 
 from __future__ import annotations
 
 import anthropic
+from sqlalchemy.orm import Session
 
 from app.agents.analyzer import AnalyzerResult, run_analyzer
 from app.agents.commander import (
     AGENT_ANALYZER,
+    AGENT_ESCALATION,
     AGENT_REASONING,
     AGENT_RECOMMENDATION,
     NO_ACTION,
@@ -25,6 +30,7 @@ from app.agents.commander import (
     commander_route,
     dispatch_stub,
 )
+from app.agents.escalation import EscalationResult, run_escalation
 from app.agents.reasoning import ReasoningFailure, ReasoningResult, run_reasoning
 from app.agents.recommendation import (
     RecommendationFailure,
@@ -49,6 +55,8 @@ def route_and_dispatch(
     recommendation_risk_score: int | None = None,
     recommendation_risk_level: str | None = None,
     recommendation_reasoning: ReasoningResult | None = None,
+    db: Session | None = None,
+    escalation_extra_context: dict | None = None,
     anthropic_client: anthropic.Anthropic | None = None,
 ) -> tuple[
     CommanderDecision,
@@ -57,6 +65,7 @@ def route_and_dispatch(
     | ReasoningFailure
     | RecommendationResult
     | RecommendationFailure
+    | EscalationResult
     | str
     | None,
 ]:
@@ -78,9 +87,17 @@ def route_and_dispatch(
       raises if omitted).
       `anthropic_client` is passed through to whichever LLM agent runs, for
       injecting a test double; omit it to use the real Claude API.
+    - If Commander routes to 06-escalation-agent (rules 1, 7, 9, 11, 13, 14,
+      15, 20 in Phase 4), `result` is a real `EscalationResult` (`db` is
+      required in that case — raises if omitted). Context is assembled from
+      the trigger and whatever `claim_state` carries (status, risk_score,
+      risk_level, latest_issues, latest_recommendation); pass
+      `escalation_extra_context` to attach anything richer the caller already
+      has on hand — e.g. the actual `ReasoningFailure`/`RecommendationFailure`
+      that led here, which `claim_state` alone doesn't carry.
     - If Commander routes to `no_action`, `result` is `None`.
-    - For every other agent (04-06), `result` is still `dispatch_stub`'s
-      placeholder string — those agents aren't built yet.
+    - For every other agent (04-05), `result` is still `dispatch_stub`'s
+      placeholder string — those agents aren't reachable in Phase 4 at all.
     """
     decision = commander_route(claim_state, trigger)
     claim_id = claim_state.get("claim_id") if claim_state else None
@@ -135,6 +152,28 @@ def route_and_dispatch(
             recommendation_reasoning.uncertainty_notes,
             recommendation_reasoning.summary,
             client=anthropic_client,
+        )
+        return decision, result
+
+    if decision.decision == AGENT_ESCALATION:
+        if db is None:
+            raise ValueError("db is required to run 06-escalation-agent")
+        context = {
+            "trigger": trigger,
+            "claim_status": claim_state.get("status") if claim_state else None,
+            "risk_score": claim_state.get("risk_score") if claim_state else None,
+            "risk_level": claim_state.get("risk_level") if claim_state else None,
+            "latest_issues": claim_state.get("latest_issues") if claim_state else None,
+            "latest_recommendation": claim_state.get("latest_recommendation") if claim_state else None,
+        }
+        if escalation_extra_context:
+            context.update(escalation_extra_context)
+        result = run_escalation(
+            db,
+            claim_id=claim_id,
+            reason_code=decision.reason_code,
+            rule=decision.rule,
+            context=context,
         )
         return decision, result
 

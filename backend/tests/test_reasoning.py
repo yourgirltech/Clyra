@@ -285,28 +285,25 @@ def test_rule08_missing_required_inputs_raises_rather_than_guessing():
 
 
 # ---------------------------------------------------------------------------
-# 04-06 remain stubbed. Same guard pattern as the rule-6/rule-8 "is it real"
-# tests above, just asserting the opposite: dispatch_stub's placeholder
-# string, never a real result object.
-#
-# Rule 10 (03-recommendation-agent) is deliberately NOT in this list anymore
-# — it went real in build step 4. Its own "not a stub" coverage lives in
-# test_recommendation.py, same pattern as rule 6 (test_analyzer.py) and rule 8
-# (test_reasoning.py) before it. 06-escalation-agent (rules 7, 9, 11, and the
-# rule 14/15 Phase-4 carve-out) is directly reachable through Commander's
-# decision.decision, so route_and_dispatch's fallback branch
-# (`dispatch_stub(decision.decision)`) is what's under test for it.
+# Only 04-followup-agent and 05-reminder-agent remain out of reach in Phase 4
+# — as of build step 5 (06-escalation-agent), every other agent Commander can
+# route to (01, 02, 03, 06) is real. There is no longer any rule that leaves
+# dispatch.py returning dispatch_stub's placeholder string for a genuinely
+# reachable decision: 06's own "is it real" coverage (rules 1, 7, 9, 11, 13,
+# 14, 15, 20) lives in test_escalation.py, same pattern as rule 6
+# (test_analyzer.py), rule 8 (test_reasoning.py), and rule 10
+# (test_recommendation.py) before it.
 #
 # 04-followup-agent and 05-reminder-agent are different: Commander's Phase 4
 # build scope means decision.decision can never actually equal AGENT_FOLLOWUP
 # or AGENT_REMINDER in the first place (see docs/agents/00-commander.md's
 # "Design scope vs. Phase 4 implementation") — an approved follow_up/
-# payer_reminder routes to escalation instead (rules 14/15), which
+# payer_reminder routes to 06-escalation-agent instead (rules 14/15), which
 # test_commander.py already proves at the routing level
-# (test_rule14_..._not_04 / test_rule15_..._not_05). The two rule-14/15 cases
-# below re-confirm the same thing one layer up, at dispatch: since Commander
-# itself never emits AGENT_FOLLOWUP/AGENT_REMINDER as a decision, dispatch.py
-# has no real-agent branch for either — there's nothing to stub around.
+# (test_rule14_..._not_04 / test_rule15_..._not_05). The test below
+# re-confirms the same thing one layer up: since Commander itself never emits
+# AGENT_FOLLOWUP/AGENT_REMINDER as a decision, dispatch.py has no real-agent
+# branch for either — there's nothing to stub around.
 # ---------------------------------------------------------------------------
 
 def _claim_state(**overrides):
@@ -321,37 +318,6 @@ def _claim_state(**overrides):
     }
     state.update(overrides)
     return state
-
-
-@pytest.mark.parametrize(
-    "rule,trigger,claim_state,expected_agent",
-    [
-        (7, {"type": "analyzer_failed", "payload": {}}, _claim_state(), AGENT_ESCALATION),
-        (9, {"type": "reasoning_failed", "payload": {}}, _claim_state(), AGENT_ESCALATION),
-        (11, {"type": "recommendation_failed", "payload": {}}, _claim_state(), AGENT_ESCALATION),
-        (
-            14,
-            {"type": "human_approved", "payload": {}},
-            _claim_state(latest_recommendation={"action_type": "follow_up", "low_confidence": False, "approval_status": "pending"}),
-            AGENT_ESCALATION,
-        ),
-        (
-            15,
-            {"type": "human_approved", "payload": {}},
-            _claim_state(latest_recommendation={"action_type": "payer_reminder", "low_confidence": False, "approval_status": "pending"}),
-            AGENT_ESCALATION,
-        ),
-    ],
-)
-def test_agents_beyond_03_are_still_stubbed(rule, trigger, claim_state, expected_agent):
-    decision, result = route_and_dispatch(claim_state, trigger)
-
-    assert decision.rule == rule
-    assert decision.decision == expected_agent
-    assert result == f"would call: {expected_agent}"
-    # Never the real dataclasses 04/05/06 would eventually return.
-    assert not hasattr(result, "action_type")
-    assert not hasattr(result, "risk_score")
 
 
 def test_04_and_05_are_never_even_reachable_as_a_commander_decision():

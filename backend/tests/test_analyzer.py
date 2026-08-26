@@ -7,9 +7,9 @@ Three layers, per the build-step-2 scope:
    tests/test_risk_engine.py's cases).
 2. Commander's rule 6 (claim_created / claim_evidence_updated) actually
    invokes the analyzer now, in place of the "would call: 01-analyzer-agent"
-   stub — while agents beyond it (e.g. rule 10 -> 03-recommendation-agent)
-   stay stubbed. (02-reasoning-agent, rule 8, became real in a later build
-   step — its own "not a stub" coverage lives in test_reasoning.py.)
+   stub. (02/03/06 became real in later build steps — their own "not a stub"
+   coverage lives in test_reasoning.py / test_recommendation.py /
+   test_escalation.py.)
 3. A real seeded claim, read from the actual demo Postgres database, produces
    the expected issues/risk_score/risk_level through this exact path — not
    just synthetic dicts.
@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from app.agents.analyzer import AnalyzerResult, run_analyzer
-from app.agents.commander import AGENT_ANALYZER, AGENT_ESCALATION
+from app.agents.commander import AGENT_ANALYZER
 from app.agents.dispatch import route_and_dispatch
 
 
@@ -149,18 +149,14 @@ def test_rule06_missing_required_inputs_raises_rather_than_guessing():
         route_and_dispatch(make_claim_state(), make_trigger("claim_created"))
 
 
-def test_only_analyzer_is_real_agents_beyond_it_still_stubbed():
-    # Rule 7 routes to 06-escalation-agent, which is not built yet — dispatch
-    # must still return the stub placeholder for it. (Rule 8's
-    # 02-reasoning-agent and rule 10's 03-recommendation-agent both became
-    # real in later build steps — see test_reasoning.py / test_recommendation.py
-    # for their own "not a stub" coverage, and each file's own "beyond X still
-    # stubbed" guard for the fuller picture.)
-    decision, result = route_and_dispatch(make_claim_state(), make_trigger("analyzer_failed"))
-
-    assert decision.rule == 7
-    assert decision.decision == AGENT_ESCALATION
-    assert result == f"would call: {AGENT_ESCALATION}"
+# As of build step 5 (06-escalation-agent), every agent Commander can route
+# to in Phase 4 (01, 02, 03, 06) is real — there's no longer a rule that
+# leaves dispatch.py returning the stub placeholder for a reachable decision,
+# so there's nothing left for a generic "is it still stubbed" test in this
+# file to guard. Rule 7 (analyzer_failed -> 06-escalation-agent)'s "is it
+# real" coverage lives in test_escalation.py; the only two agents still out
+# of reach (04-followup-agent, 05-reminder-agent) are proven unreachable in
+# test_reasoning.py's test_04_and_05_are_never_even_reachable_as_a_commander_decision.
 
 
 # ---------------------------------------------------------------------------

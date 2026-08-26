@@ -114,3 +114,17 @@ class ActivityLog(Base):
     action = Column(String(128), nullable=False)
     details = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Escalation(Base):
+    __tablename__ = "escalations"
+    id = Column(Integer, primary_key=True, index=True)
+    # No FK: 06-escalation-agent must be able to flag a claim_id that never
+    # resolved to a real claim (rule 1) — the whole point of that rule.
+    claim_id = Column(String(64), nullable=True, index=True)
+    reason_code = Column(String(64), nullable=False, index=True)
+    rule = Column(Integer, nullable=False)
+    originating_agent = Column(String(128), nullable=False)
+    severity = Column(String(16), nullable=False, index=True)
+    context = Column(Text, nullable=False)  # JSON-serialized context chain
+    created_at = Column(DateTime, default=datetime.utcnow)

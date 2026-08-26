@@ -18,6 +18,7 @@ from app.agents.commander import (
     commander_route,
 )
 from app.agents.dispatch import route_and_dispatch
+from app.agents.escalation import EscalationResult
 from app.agents.reasoning import ReasoningResult
 from app.agents.recommendation import (
     INSUFFICIENT_BASIS_RATIONALE,
@@ -45,6 +46,29 @@ class FakeMessages:
 class FakeClient:
     def __init__(self, parsed_output):
         self.messages = FakeMessages(parsed_output)
+
+
+class _FakeEscalationDB:
+    """Minimal duck-typed stand-in for a SQLAlchemy Session — just enough for
+    run_escalation's add/commit/refresh calls to succeed without a real DB.
+    Escalation persistence correctness itself is test_escalation.py's job;
+    these two tests only care that recommendation's real action_type reaches
+    Commander's rule 14/15 correctly."""
+
+    def add(self, obj):
+        self._obj = obj
+
+    def commit(self):
+        from datetime import datetime
+
+        self._obj.id = 1
+        self._obj.created_at = datetime.utcnow()
+
+    def refresh(self, obj):
+        pass
+
+    def rollback(self):
+        pass
 
 
 def make_issue(issue_type="missing_authorization", severity="high"):
@@ -360,13 +384,19 @@ def test_real_follow_up_recommendation_still_escalates_not_04():
             "approval_status": "pending",
         }
     )
-    decision, dispatch_result = route_and_dispatch(claim_state, {"type": "human_approved", "payload": {}})
+    decision, dispatch_result = route_and_dispatch(
+        claim_state, {"type": "human_approved", "payload": {}}, db=_FakeEscalationDB()
+    )
 
     assert decision.rule == 14
     assert decision.decision == AGENT_ESCALATION
     assert decision.reason_code == "agent_not_yet_implemented"
     assert decision.decision != AGENT_FOLLOWUP
-    assert dispatch_result == f"would call: {AGENT_ESCALATION}"
+    # 06-escalation-agent is real now — a genuine EscalationResult, not the
+    # old stub placeholder string.
+    assert isinstance(dispatch_result, EscalationResult)
+    assert dispatch_result.reason_code == "agent_not_yet_implemented"
+    assert dispatch_result.rule == 14
 
 
 def test_real_payer_reminder_recommendation_still_escalates_not_05():
@@ -394,10 +424,14 @@ def test_real_payer_reminder_recommendation_still_escalates_not_05():
             "approval_status": "pending",
         }
     )
-    decision, dispatch_result = route_and_dispatch(claim_state, {"type": "human_approved", "payload": {}})
+    decision, dispatch_result = route_and_dispatch(
+        claim_state, {"type": "human_approved", "payload": {}}, db=_FakeEscalationDB()
+    )
 
     assert decision.rule == 15
     assert decision.decision == AGENT_ESCALATION
     assert decision.reason_code == "agent_not_yet_implemented"
     assert decision.decision != AGENT_REMINDER
-    assert dispatch_result == f"would call: {AGENT_ESCALATION}"
+    assert isinstance(dispatch_result, EscalationResult)
+    assert dispatch_result.reason_code == "agent_not_yet_implemented"
+    assert dispatch_result.rule == 15
