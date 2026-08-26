@@ -9,14 +9,16 @@ type ChatMessage = {
 const seedMessages: ChatMessage[] = [
   {
     role: 'assistant',
-    text: "Hi, I'm the Clyra assistant. Once the agent system is wired up, I'll be able to answer questions about specific claims, risk factors, and portfolio metrics — grounded in the same rule engine that powers the dashboard.",
+    text: "Hi, I'm the Clyra assistant. Once I'm connected, I'll answer questions about your claims using real claim data — and tell you plainly when I don't have enough information, rather than guess.",
   },
 ]
 
 const sampleQuestions = [
-  'How many claims are At Risk right now?',
-  'Why would a claim be flagged for missing documentation?',
-  'Which payer has the most Needs Review claims?',
+  'Which claims need my attention today?',
+  'Why was this claim flagged?',
+  'Show me my highest-risk claims.',
+  'Which claims are waiting too long?',
+  'What should I review first?',
 ]
 
 export function AIAssistant() {
@@ -90,20 +92,23 @@ export function AIAssistant() {
             </div>
             <ul className="mt-3 space-y-2.5">
               {sampleQuestions.map((q) => (
-                <li
-                  key={q}
-                  className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-500"
-                >
-                  {q}
+                <li key={q}>
+                  <button
+                    type="button"
+                    onClick={() => setDraft(q)}
+                    className="w-full rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2.5 text-left text-sm text-slate-500 transition hover:border-indigo-200 hover:bg-indigo-50/60 hover:text-indigo-700"
+                  >
+                    {q}
+                  </button>
                 </li>
               ))}
             </ul>
           </div>
 
           <div className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/60 p-5 text-sm text-indigo-700/80">
-            Backed by the Commander-routed <span className="font-medium text-indigo-900">07-assistant-agent</span>,
-            with read-only tool access to claim lookups, the rule engine, and dashboard metrics. Design in{' '}
-            <code className="rounded bg-white/60 px-1 py-0.5 text-xs">docs/agents/07-assistant-agent.md</code>.
+            Every answer will be grounded in real claim data — the actual rule-engine findings and dashboard
+            metrics, not general knowledge. If it doesn't have enough information to answer, it says so instead
+            of guessing.
           </div>
         </div>
       </div>

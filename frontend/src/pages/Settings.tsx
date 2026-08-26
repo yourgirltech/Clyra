@@ -91,16 +91,16 @@ export function Settings() {
         <SettingsSection
           icon={ShieldCheck}
           title="Approval controls"
-          description="Guardrails around AI recommendations — matches docs/ai-design.md."
+          description="AI recommends. The human decides. Automation executes."
         >
           <ToggleRow
             label="Require human approval for all actions"
-            hint="Cannot be disabled — AI recommends, humans decide"
+            hint="Cannot be disabled — no follow-up, reminder, or status change ever executes without it"
             checked
           />
           <ToggleRow
-            label="Auto-escalate low-confidence recommendations"
-            hint="Routes to 06-escalation-agent instead of one-click approval"
+            label="Escalate low-confidence recommendations"
+            hint="A shaky recommendation is flagged for review, never shown as a one-click approval"
             checked
           />
         </SettingsSection>
@@ -112,8 +112,8 @@ export function Settings() {
       </div>
 
       <div className="mt-5 rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/60 p-5 text-sm text-indigo-700/80">
-        This page is a visual preview — controls are not yet wired to the backend. Editable settings land once the
-        Commander agent pipeline (Phase 4) is in place.
+        This page is a visual preview — nothing here is editable yet. These controls will become live once
+        Settings is connected to the backend.
       </div>
     </div>
   )
