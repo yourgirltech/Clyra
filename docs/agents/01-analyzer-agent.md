@@ -1,7 +1,7 @@
 # 01 — Analyzer Agent
 
 ## Status
-Planning document. No runtime has been chosen.
+Implemented. `backend/app/agents/analyzer.py` (`run_analyzer`) wraps the existing Phase 3 rule engine (`evaluate_claim_rules` / `score_and_level_from_issues`) exactly as described below — no LLM, no persistence in this build step. Commander's rule 6 dispatches to it for real via `backend/app/agents/dispatch.py`, in place of the earlier stub. Covered by `backend/tests/test_analyzer.py`, including a real seeded claim (CL-10002) verified end to end through Commander → Analyzer. Every other agent (02-06) is still `dispatch_stub` — only 01 is wired up so far.
 
 ## Role
 The Analyzer is the grounding step for everything downstream. It takes one claim, runs it through the **existing deterministic rule engine** (`backend/app/services/risk_rules.py` — `evaluate_claim_rules` / `score_and_level_from_issues`, unchanged by this roadmap), and reports back exactly what the engine found. It performs no reasoning, no explanation, and no judgment of its own — it is a thin, faithful wrapper around code that already exists and is already the system's source of truth for risk.
