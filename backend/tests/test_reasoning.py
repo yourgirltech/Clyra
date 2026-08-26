@@ -111,6 +111,41 @@ def test_refuses_to_invent_an_issue_not_in_the_list():
     assert "fraud_suspected" in result.detail
 
 
+def test_refuses_cross_issue_notes_smuggled_in_as_a_fake_issue():
+    # Reproduces a real failure observed against the live API: the model put
+    # its cross-issue commentary into issue_explanations as a fake entry
+    # (issue_type="cross_issue_notes") instead of using the dedicated
+    # cross_issue_notes field. Same ungrounded-output guard as any other
+    # invented issue_type — this pins that specific real-world shape as a
+    # named regression case rather than relying on the generic one above.
+    issues = [make_issue("missing_authorization", "high"), make_issue("code_mismatch", "medium")]
+    mock_output = ReasoningOutput(
+        issue_explanations=[
+            IssueExplanation(issue_type="missing_authorization", explanation="Auth is required and absent."),
+            IssueExplanation(issue_type="code_mismatch", explanation="Coding doesn't match payer rules."),
+            IssueExplanation(
+                issue_type="cross_issue_notes",
+                explanation="These two issues compound each other's denial risk.",
+            ),
+        ],
+        cross_issue_notes="",  # left empty — the model put the content in the wrong place instead
+        uncertainty_notes="",
+        summary="Two issues found.",
+    )
+    client = FakeClient(mock_output)
+
+    result = run_reasoning("CL-1", issues, 80, "High", make_claim_context(), client=client)
+
+    assert isinstance(result, ReasoningFailure)
+    assert result.reason == "ungrounded_output"
+    assert "cross_issue_notes" in result.detail
+    # The fix for the historical incident: the exact response that failed is
+    # now preserved on the failure itself, not just a reason code — so a
+    # future occurrence is diagnosable without having to reproduce it live.
+    assert result.raw_model_response
+    assert "cross_issue_notes" in result.raw_model_response
+
+
 # ---------------------------------------------------------------------------
 # Empty issue list: "no issues to explain," no model call at all.
 # ---------------------------------------------------------------------------

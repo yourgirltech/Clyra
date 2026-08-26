@@ -88,6 +88,8 @@ def test_real_claude_call_explains_cl_10002():
 
         if isinstance(result, ReasoningFailure):
             print(f"FAILURE — reason: {result.reason}\ndetail: {result.detail}")
+            if result.raw_model_response:
+                print(f"\nRAW MODEL RESPONSE:\n{result.raw_model_response}")
             pytest.fail(f"run_reasoning returned a failure: {result.reason} — {result.detail}")
 
         assert isinstance(result, ReasoningResult)

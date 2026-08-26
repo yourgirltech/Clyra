@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Union
 
 import anthropic
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.services.risk_rules import Issue
@@ -33,36 +33,64 @@ assistant. You have been given the exact output of a deterministic rule engine f
 insurance claim: a list of Issues (each with an issue_type, severity, description, and \
 evidence), the claim's risk_score and risk_level, and minimal claim context.
 
-Your only job is to explain what these findings mean in plain language for a human \
-claims reviewer. You must:
-- Explain each Issue in the list: what it means in practice, and why it matters for this claim.
-- Note how issues interact where relevant (e.g. two issues compounding risk together, not \
-  just adding up independently) — leave this blank if there's nothing meaningful to add.
-- Explicitly say when something is uncertain or when the evidence you were given is \
-  incomplete. Do not fill a gap with a plausible-sounding guess — leave this blank if \
-  nothing is uncertain.
-- Write a short overall summary tying the above together.
+Your only job is to explain what these findings mean in plain language for a human claims \
+reviewer, using exactly the four output fields described below — one job per field, nothing \
+shared or duplicated between them:
+
+- issue_explanations: ONE entry per Issue you were given, and NOTHING ELSE. Each entry's \
+  issue_type must be copied exactly, character-for-character, from the Issue list — never a \
+  field name, a category label, or anything you invented. Cross-issue commentary, uncertainty \
+  notes, and your summary each have their OWN dedicated field below — never create a fake \
+  issue_explanations entry to hold that content instead.
+- cross_issue_notes: a single string. How issues interact where relevant (e.g. two issues \
+  compounding risk together, not just adding up independently). Leave it as an empty string \
+  if there's nothing meaningful to add — do not put this content in issue_explanations.
+- uncertainty_notes: a single string. Say plainly when something is uncertain or the evidence \
+  you were given is incomplete. Do not fill a gap with a plausible-sounding guess. Leave it as \
+  an empty string if nothing is uncertain — do not put this content in issue_explanations.
+- summary: a single string. A short overall summary tying the above together.
 
 You must NOT:
 - Invent, rename, or add an issue that is not in the Issue list you were given — even if \
   something else looks concerning, you have no way to verify anything not in the data you \
-  were handed. Every issue_explanations entry's issue_type must be copied exactly, \
-  character-for-character, from the Issue list.
+  were handed.
 - Recommend an action or next step — that is a different system's job, not yours.
 - Recompute or second-guess the risk_score or risk_level — treat them as given facts.
 - Reference any information source other than what appears in this prompt."""
 
 
 class IssueExplanation(BaseModel):
-    issue_type: str
-    explanation: str
+    issue_type: str = Field(
+        description=(
+            "Copied exactly, character-for-character, from an issue_type in the Issue list "
+            "you were given. Never a field name like 'cross_issue_notes' or 'summary', never "
+            "a category label, never anything not in that list."
+        )
+    )
+    explanation: str = Field(description="What this one issue means in practice, and why it matters for this claim.")
 
 
 class ReasoningOutput(BaseModel):
-    issue_explanations: List[IssueExplanation]
-    cross_issue_notes: str
-    uncertainty_notes: str
-    summary: str
+    issue_explanations: List[IssueExplanation] = Field(
+        description=(
+            "One entry per Issue in the Issue list you were given — nothing else. Cross-issue "
+            "commentary, uncertainty notes, and the summary each belong in their own field "
+            "below, never as an extra entry here."
+        )
+    )
+    cross_issue_notes: str = Field(
+        description=(
+            "How the issues interact with each other, if at all. The only place this content "
+            "belongs — never as an entry in issue_explanations. Empty string if nothing to add."
+        )
+    )
+    uncertainty_notes: str = Field(
+        description=(
+            "What's uncertain or missing from the evidence you were given, if anything. Empty "
+            "string if nothing is uncertain."
+        )
+    )
+    summary: str = Field(description="A short overall summary tying the above together.")
 
 
 @dataclass(frozen=True)
@@ -80,6 +108,7 @@ class ReasoningFailure:
     claim_id: Optional[str]
     reason: str  # "malformed_input" | "ungrounded_output" | "llm_call_failed"
     detail: str
+    raw_model_response: str = ""  # populated for "ungrounded_output" — the exact response that failed
 
 
 _REQUIRED_CLAIM_CONTEXT_FIELDS = ("payer", "amount", "status", "claim_age_days")
@@ -201,6 +230,7 @@ def run_reasoning(
             claim_id=claim_id,
             reason="ungrounded_output",
             detail=f"model referenced issue_type(s) not in the input: {sorted(ungrounded)}",
+            raw_model_response=parsed.model_dump_json(indent=2),
         )
 
     return ReasoningResult(
