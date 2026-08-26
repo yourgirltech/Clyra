@@ -1,7 +1,7 @@
 # 00 — Commander
 
 ## Status
-Planning document. No runtime (Python / n8n / other) has been chosen. This file describes decision logic only — nothing here implies an implementation.
+Implemented. `backend/app/agents/commander.py` (`commander_route`) is a pure Python function implementing the full 20-rule table below exactly, with no I/O beyond the claim-state snapshot and trigger it's given. Covered by 47 passing tests in `backend/tests/test_commander.py` — every rule individually verified, plus malformed/missing-input and rule-ordering coverage. No specialist agent (01-06) is wired up yet; `dispatch_stub` stands in for those calls until each is built one at a time.
 
 ## Role
 Commander is a pure decision node. Given the current state of one claim and a triggering event, it decides which single specialist agent (if any) runs next. It never talks to a user, never generates content, never calls a tool, and never executes an action itself. Its entire behavior is the ordered rule table below — nothing else. This makes Commander fully auditable: for any claim + event pair, the routing decision can be verified by reading the table, no model call required.
