@@ -1,7 +1,7 @@
 # 07 — Assistant Agent
 
 ## Status
-Planning document. No runtime has been chosen.
+Implemented. `backend/app/agents/assistant.py` (`run_assistant`) is a manual tool-use loop against the Claude API with five read-only tools (`get_claim`, `get_claims_by_risk`, `get_overdue_claims`, `get_claims_by_payer`, `analyze_claim`) — no write-capable tool exists at all, so no phrasing can make it execute an action. Every claim_id mentioned in a reply must have actually come back from a tool call this turn, or the response is rejected as ungrounded. It has no import dependency on `commander.py`/`dispatch.py`/`escalation.py`, matching its place outside Commander's rule table. Wired end to end: `POST /api/ai/assistant` calls it directly (not via `route_and_dispatch`), and the AI Assistant chat UI is live — no more "not yet connected" badge or disabled input. Covered by `backend/tests/test_assistant.py` (mocked tool-selection, grounding refusal, explain-not-act, structural no-action-tool/no-escalation checks) and one real, opt-in Claude API call in `backend/tests/test_assistant_live.py`.
 
 ## Role
 The Assistant Agent is the conversational, tool-calling agent behind the AI Assistant chat page (`frontend/src/pages/AIAssistant.tsx`). Unlike agents 01–06, it isn't driven by Commander's claim-lifecycle rule table (see the closing note in [00-commander](./00-commander.md) for why) — it's invoked directly by the chat UI whenever a user sends a message. It answers ad-hoc operator questions on demand, under the same guardrail as every other agent: it can look things up and explain, it can never execute an action.
