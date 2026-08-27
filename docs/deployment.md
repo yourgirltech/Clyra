@@ -40,10 +40,16 @@ for the trade-offs that come with that.
      domain, Netlify deploy-preview pattern) if needed.
 4. Trigger a deploy. On boot the start command runs `alembic upgrade head`
    before starting uvicorn, so the schema is created on the first deploy.
-5. **Seed synthetic data** (one time): open the `clyra-backend` **Shell** in the
-   Render dashboard and run `python scripts/seed_claims.py`. The seed is
-   deterministic (`random.seed(42)`) and idempotent for the base clinic/payer
-   rows.
+5. **Seed synthetic data**: open the `clyra-backend` **Shell** in the Render
+   dashboard and run `python scripts/seed_claims.py`. The seed is deterministic
+   (`random.seed(42)`) and safe to re-run: it creates claims only if fewer than
+   80 exist, then reconciles **every** claim through the real analyzer +
+   Commander and prints the resulting risk/status distribution, exiting
+   non-zero if any status/risk invariant is violated
+   (see [`architecture.md`](./architecture.md#claim-status-and-computed-risk)).
+   Re-run it after the free Postgres instance lapses and is re-provisioned, or
+   any time `python scripts/risk_distribution.py` (read-only) reports a
+   violation.
 
 ### Key configuration details
 

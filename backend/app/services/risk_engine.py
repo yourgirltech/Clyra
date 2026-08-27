@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from typing import List
+
+from sqlalchemy.orm import Session
+
 from app.services.risk_rules import evaluate_claim_rules, score_and_level_from_issues, Issue
 from app import models
 
 
-def analyze_and_persist(db, claim: models.Claim) -> List[Issue]:
+def analyze_and_persist(db: Session, claim: models.Claim) -> List[Issue]:
     # build claim_dict
     claim_dict = {
         'authorization_present': int(getattr(claim, 'authorization_present', 0)),
@@ -22,7 +26,6 @@ def analyze_and_persist(db, claim: models.Claim) -> List[Issue]:
     }
 
     # get follow ups
-    from sqlalchemy.orm import Session as _Session  # imported here to avoid top-level SQLAlchemy dependency in pure functions
     fups = db.query(models.FollowUp).filter(models.FollowUp.claim_id == claim.id).all()
     follow_ups = [{'due_at': f.due_at} for f in fups]
 
