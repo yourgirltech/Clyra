@@ -154,49 +154,40 @@ def test_rule13_low_confidence_creates_real_escalation(db_session):
     assert "manual_review_needed" in row.context
 
 
-def test_rule14_follow_up_carve_out_creates_real_escalation(db_session):
+def test_rule17_followup_execution_failed_creates_real_escalation(db_session):
+    # Rules 14/15 dispatch to the real 04/05 agents now (see test_commander.py
+    # and test_followup.py/test_reminder.py) — 06 is no longer where an
+    # approval lands directly. It's still where a *failed execution* lands:
+    # this rule was unreachable in Phase 4 (04 didn't exist to ever emit
+    # followup_failed) and is genuinely reachable for the first time.
     from app import models
 
     session, created_ids = db_session
-    claim_state = _claim_state(
-        latest_recommendation={
-            "action_type": "follow_up",
-            "low_confidence": False,
-            "approval_status": "pending",
-        }
-    )
-    decision, result = route_and_dispatch(claim_state, _make_trigger("human_approved"), db=session)
+    decision, result = route_and_dispatch(_claim_state(), _make_trigger("followup_failed"), db=session)
     created_ids.append(result.escalation_id)
 
-    assert decision.rule == 14
+    assert decision.rule == 17
     row = session.query(models.Escalation).filter(models.Escalation.id == result.escalation_id).first()
     assert row is not None
-    assert row.reason_code == "agent_not_yet_implemented"
-    assert row.rule == 14
-    assert "04-followup-agent" in row.originating_agent
-    assert row.severity == "high"  # already approved, just can't execute yet
+    assert row.reason_code == "followup_execution_failed"
+    assert row.rule == 17
+    assert row.originating_agent == "04-followup-agent"
+    assert row.severity == "high"
 
 
-def test_rule15_payer_reminder_carve_out_creates_real_escalation(db_session):
+def test_rule18_reminder_execution_failed_creates_real_escalation(db_session):
     from app import models
 
     session, created_ids = db_session
-    claim_state = _claim_state(
-        latest_recommendation={
-            "action_type": "payer_reminder",
-            "low_confidence": False,
-            "approval_status": "pending",
-        }
-    )
-    decision, result = route_and_dispatch(claim_state, _make_trigger("human_approved"), db=session)
+    decision, result = route_and_dispatch(_claim_state(), _make_trigger("reminder_failed"), db=session)
     created_ids.append(result.escalation_id)
 
-    assert decision.rule == 15
+    assert decision.rule == 18
     row = session.query(models.Escalation).filter(models.Escalation.id == result.escalation_id).first()
     assert row is not None
-    assert row.reason_code == "agent_not_yet_implemented"
-    assert row.rule == 15
-    assert "05-reminder-agent" in row.originating_agent
+    assert row.reason_code == "reminder_execution_failed"
+    assert row.rule == 18
+    assert row.originating_agent == "05-reminder-agent"
     assert row.severity == "high"
 
 

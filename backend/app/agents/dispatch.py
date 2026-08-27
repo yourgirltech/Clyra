@@ -2,19 +2,15 @@
 
 Commander (`app.agents.commander.commander_route`) only decides *whether* the
 pipeline continues and *which* agent runs next — it never calls one. This
-module is the thin seam that does: given a routing decision, either run a
-real agent (01-analyzer-agent, 02-reasoning-agent, 03-recommendation-agent,
-06-escalation-agent) or fall back to `dispatch_stub` for every agent that
-isn't built yet.
-
-Build step 5: 01, 02, 03, and 06 are real. 04-followup-agent and
-05-reminder-agent remain unreachable in Phase 4 by Commander's own design
-(the rule 14/15 carve-out routes to 06 instead) — extending this to them in
-Phase 6 is just adding another `if decision.decision == AGENT_X` branch here;
-Commander and each agent's own module stay untouched.
+module is the thin seam that does: given a routing decision, run the real
+agent (01 through 06) that Commander named. `dispatch_stub` remains only as
+a defensive fallback for a decision string with no matching branch below,
+which should never happen now that every agent 01-06 is implemented.
 """
 
 from __future__ import annotations
+
+from datetime import datetime
 
 import anthropic
 from sqlalchemy.orm import Session
@@ -23,20 +19,24 @@ from app.agents.analyzer import AnalyzerResult, run_analyzer
 from app.agents.commander import (
     AGENT_ANALYZER,
     AGENT_ESCALATION,
+    AGENT_FOLLOWUP,
     AGENT_REASONING,
     AGENT_RECOMMENDATION,
+    AGENT_REMINDER,
     NO_ACTION,
     CommanderDecision,
     commander_route,
     dispatch_stub,
 )
 from app.agents.escalation import EscalationResult, run_escalation
+from app.agents.followup import FollowUpFailure, FollowUpResult, run_followup
 from app.agents.reasoning import ReasoningFailure, ReasoningResult, run_reasoning
 from app.agents.recommendation import (
     RecommendationFailure,
     RecommendationResult,
     run_recommendation,
 )
+from app.agents.reminder import ReminderFailure, ReminderResult, run_reminder
 from app.services.risk_rules import Issue
 
 
@@ -55,6 +55,13 @@ def route_and_dispatch(
     recommendation_risk_score: int | None = None,
     recommendation_risk_level: str | None = None,
     recommendation_reasoning: ReasoningResult | None = None,
+    claim_pk: int | None = None,
+    followup_action: dict | None = None,
+    reminder_action: dict | None = None,
+    approver: str | None = None,
+    approved_at: datetime | None = None,
+    approval_still_valid: bool = True,
+    simulate_transient_failures: int = 0,
     db: Session | None = None,
     escalation_extra_context: dict | None = None,
     anthropic_client: anthropic.Anthropic | None = None,
@@ -65,6 +72,10 @@ def route_and_dispatch(
     | ReasoningFailure
     | RecommendationResult
     | RecommendationFailure
+    | FollowUpResult
+    | FollowUpFailure
+    | ReminderResult
+    | ReminderFailure
     | EscalationResult
     | str
     | None,
@@ -87,17 +98,25 @@ def route_and_dispatch(
       raises if omitted).
       `anthropic_client` is passed through to whichever LLM agent runs, for
       injecting a test double; omit it to use the real Claude API.
-    - If Commander routes to 06-escalation-agent (rules 1, 7, 9, 11, 13, 14,
-      15, 20 in Phase 4), `result` is a real `EscalationResult` (`db` is
-      required in that case — raises if omitted). Context is assembled from
-      the trigger and whatever `claim_state` carries (status, risk_score,
-      risk_level, latest_issues, latest_recommendation); pass
-      `escalation_extra_context` to attach anything richer the caller already
-      has on hand — e.g. the actual `ReasoningFailure`/`RecommendationFailure`
-      that led here, which `claim_state` alone doesn't carry.
+    - If Commander routes to 04-followup-agent (rule 14), `result` is a real
+      `FollowUpResult` or `FollowUpFailure` computed from `followup_action`/
+      `claim_pk`/`approver`/`approved_at` (required in that case — raises if
+      omitted). `approval_still_valid`/`simulate_transient_failures` are
+      test-only levers, passed straight through.
+    - If Commander routes to 05-reminder-agent (rule 15), `result` is a real
+      `ReminderResult` or `ReminderFailure` computed from `reminder_action`/
+      `claim_pk`/`approver`/`approved_at` (required in that case — raises if
+      omitted), with the same test-only levers.
+    - If Commander routes to 06-escalation-agent (rules 1, 7, 9, 11, 13, 17,
+      18, 20), `result` is a real `EscalationResult` (`db` is required in
+      that case — raises if omitted). Context is assembled from the trigger
+      and whatever `claim_state` carries (status, risk_score, risk_level,
+      latest_issues, latest_recommendation); pass `escalation_extra_context`
+      to attach anything richer the caller already has on hand — e.g. the
+      actual `ReasoningFailure`/`RecommendationFailure`/`FollowUpFailure`/
+      `ReminderFailure` that led here, which `claim_state` alone doesn't
+      carry.
     - If Commander routes to `no_action`, `result` is `None`.
-    - For every other agent (04-05), `result` is still `dispatch_stub`'s
-      placeholder string — those agents aren't reachable in Phase 4 at all.
     """
     decision = commander_route(claim_state, trigger)
     claim_id = claim_state.get("claim_id") if claim_state else None
@@ -152,6 +171,44 @@ def route_and_dispatch(
             recommendation_reasoning.uncertainty_notes,
             recommendation_reasoning.summary,
             client=anthropic_client,
+        )
+        return decision, result
+
+    if decision.decision == AGENT_FOLLOWUP:
+        if claim_pk is None or followup_action is None or approver is None or approved_at is None:
+            raise ValueError(
+                "claim_pk, followup_action, approver, and approved_at are required to run 04-followup-agent"
+            )
+        if db is None:
+            raise ValueError("db is required to run 04-followup-agent")
+        result = run_followup(
+            db,
+            claim_id=claim_id,
+            claim_pk=claim_pk,
+            approved_action=followup_action,
+            approver=approver,
+            approved_at=approved_at,
+            approval_still_valid=approval_still_valid,
+            simulate_transient_failures=simulate_transient_failures,
+        )
+        return decision, result
+
+    if decision.decision == AGENT_REMINDER:
+        if claim_pk is None or reminder_action is None or approver is None or approved_at is None:
+            raise ValueError(
+                "claim_pk, reminder_action, approver, and approved_at are required to run 05-reminder-agent"
+            )
+        if db is None:
+            raise ValueError("db is required to run 05-reminder-agent")
+        result = run_reminder(
+            db,
+            claim_id=claim_id,
+            claim_pk=claim_pk,
+            approved_action=reminder_action,
+            approver=approver,
+            approved_at=approved_at,
+            approval_still_valid=approval_still_valid,
+            simulate_transient_failures=simulate_transient_failures,
         )
         return decision, result
 

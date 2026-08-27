@@ -1,0 +1,27 @@
+# Netlify configuration for the Clyra frontend (Vite + React + React Router).
+# Docs: https://docs.netlify.com/configure-builds/file-based-configuration/
+#
+# If this repo is connected with the site "base directory" set to `frontend`,
+# the paths below are already relative to that directory and need no change.
+# If the site is connected at the repo root, set base = "frontend" in the
+# Netlify UI (Site settings > Build & deploy) or uncomment the [build] base line.
+
+[build]
+  # base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# SPA fallback: React Router owns client-side routing, so every path that
+# isn't a real static asset must serve index.html with a 200 (not a 301).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# VITE_API_BASE is the deployed Render backend URL, e.g.
+#   https://clyra-backend.onrender.com
+# Set it in the Netlify UI (Site settings > Environment variables) so it is
+# available at build time. It must NOT have a trailing slash.

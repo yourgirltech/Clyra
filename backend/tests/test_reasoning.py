@@ -16,6 +16,7 @@ from app.agents.commander import (
     AGENT_FOLLOWUP,
     AGENT_REASONING,
     AGENT_REMINDER,
+    CommanderDecision,
     commander_route,
 )
 from app.agents.dispatch import route_and_dispatch
@@ -320,18 +321,21 @@ def _claim_state(**overrides):
     return state
 
 
-def test_04_and_05_are_never_even_reachable_as_a_commander_decision():
-    # Direct confirmation that AGENT_FOLLOWUP/AGENT_REMINDER never appear as
-    # decision.decision in Phase 4 — dispatch has no real branch for them
-    # because Commander itself never routes there (rules 14/15 carve-out).
+def test_04_and_05_are_reachable_as_a_commander_decision_and_dispatch_to_real_agents():
+    # 04-followup-agent and 05-reminder-agent are implemented now (see
+    # app.agents.followup / app.agents.reminder) — this used to confirm the
+    # opposite (AGENT_FOLLOWUP/AGENT_REMINDER could never appear as
+    # decision.decision, because Commander's Phase 4 carve-out routed rules
+    # 14/15 to escalation instead). That carve-out is gone; confirm both
+    # Commander's routing AND dispatch's real execution branch agree.
     follow_up_state = _claim_state(
         latest_recommendation={"action_type": "follow_up", "low_confidence": False, "approval_status": "pending"}
     )
     decision = commander_route(follow_up_state, {"type": "human_approved", "payload": {}})
-    assert decision.decision != AGENT_FOLLOWUP
+    assert decision == CommanderDecision(AGENT_FOLLOWUP, "execute_followup", 14)
 
     reminder_state = _claim_state(
         latest_recommendation={"action_type": "payer_reminder", "low_confidence": False, "approval_status": "pending"}
     )
     decision = commander_route(reminder_state, {"type": "human_approved", "payload": {}})
-    assert decision.decision != AGENT_REMINDER
+    assert decision == CommanderDecision(AGENT_REMINDER, "execute_reminder", 15)

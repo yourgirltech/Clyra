@@ -7,17 +7,17 @@ a trigger event, and returns a single routing decision. Fetching that
 snapshot, invoking the returned agent, and persisting anything are all the
 caller's responsibility, not Commander's.
 
-This module is Phase 4 build step 1: Commander's routing logic only. No
-specialist agent (01-06) is implemented yet — `dispatch_stub` stands in for
-"Commander would invoke this agent now" without actually calling anything.
+All seven agents (01-07) are implemented. `dispatch_stub` no longer stands
+in for anything reachable from this table — it remains only as a defensive
+fallback for a decision string that doesn't match a real branch in
+`app.agents.dispatch.route_and_dispatch`, which should never happen.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Agent names Commander can route to. 01-05 are not built yet (see dispatch_stub);
-# 06-escalation-agent is the target of every non-happy-path rule from day one.
+# Agent names Commander can route to.
 AGENT_ANALYZER = "01-analyzer-agent"
 AGENT_REASONING = "02-reasoning-agent"
 AGENT_RECOMMENDATION = "03-recommendation-agent"
@@ -138,16 +138,14 @@ def commander_route(claim_state: dict | None, trigger: dict | None) -> Commander
     if trigger_type == "human_approved":
         action_type = latest_recommendation.get("action_type")
 
-        # Rules 14/15 — Phase 4 build-scope carve-out. 04-followup-agent and
-        # 05-reminder-agent don't exist yet, so an approved follow_up/payer_reminder
-        # is routed to escalation with a distinct reason rather than dispatched —
-        # same shape as the rule 20 catch-all, scoped to just these two rules.
-        # When 04/05 ship (Phase 6), this carve-out is deleted and rules 14/15
-        # dispatch for real; the rule table itself does not change.
+        # Rules 14/15 — dispatch to the real executor agent for the approved
+        # action. Each agent's own retry policy handles transient failures;
+        # a failure it can't recover from comes back as followup_failed /
+        # reminder_failed (rules 17/18), never routed here directly.
         if action_type == "follow_up":
-            return CommanderDecision(AGENT_ESCALATION, "agent_not_yet_implemented", 14)
+            return CommanderDecision(AGENT_FOLLOWUP, "execute_followup", 14)
         if action_type == "payer_reminder":
-            return CommanderDecision(AGENT_ESCALATION, "agent_not_yet_implemented", 15)
+            return CommanderDecision(AGENT_REMINDER, "execute_reminder", 15)
 
         # Rule 16 — these two action types have no executor agent, ever; the
         # human's decision is itself the terminal step.

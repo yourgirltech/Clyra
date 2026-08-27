@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from datetime import datetime
 
@@ -8,7 +9,7 @@ from app.db.database import get_db
 from app import models
 from app.utils.sorting import parse_sort_params
 from app.schemas.claims import ClaimOut, ClaimListQuery, ClaimListResponse
-from app.services import risk_engine
+from app.services import risk_engine, pipeline
 
 router = APIRouter(tags=["claims"])
 
@@ -128,3 +129,144 @@ def analyze_claim(claim_id: str, clinic_id: int = Depends(get_current_clinic), d
         raise HTTPException(status_code=404, detail='Claim not found')
     issues = risk_engine.analyze_and_persist(db, claim)
     return {'issues': [issue.__dict__ if hasattr(issue, '__dict__') else issue for issue in issues], 'risk_level': claim.risk_level, 'risk_score': claim.risk_score}
+
+
+def _get_claim_or_404(claim_id: str, clinic_id: int, db: Session) -> models.Claim:
+    claim = db.query(models.Claim).filter(models.Claim.claim_id == claim_id, models.Claim.clinic_id == clinic_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    return claim
+
+
+def _recommendation_out(rec: models.Recommendation) -> dict:
+    return {
+        "id": rec.id,
+        "claim_id": rec.claim_id,
+        "action_type": rec.action_type,
+        "rationale": rec.note,
+        "confidence": rec.confidence,
+        "low_confidence": bool(rec.low_confidence),
+        "cited_issue_types": json.loads(rec.cited_issue_types) if rec.cited_issue_types else [],
+        "secondary_options": json.loads(rec.secondary_options) if rec.secondary_options else [],
+        "approval_status": rec.approval_status,
+        "created_at": rec.created_at,
+        "decided_at": rec.decided_at,
+    }
+
+
+def _activity_out(log: models.ActivityLog) -> dict:
+    return {
+        "id": log.id,
+        "action": log.action,
+        "details": json.loads(log.details) if log.details else None,
+        "created_at": log.created_at,
+    }
+
+
+def _decision_out(decision) -> dict:
+    return {"decision": decision.decision, "reason_code": decision.reason_code, "rule": decision.rule}
+
+
+def _execution_out(execution) -> dict | None:
+    if execution is None:
+        return None
+    kind = type(execution).__name__  # "FollowUpResult" | "FollowUpFailure" | "ReminderResult" | "ReminderFailure"
+    out = {"kind": kind, **execution.__dict__}
+    if "due_at" in out and out["due_at"] is not None:
+        out["due_at"] = out["due_at"].isoformat()
+    return out
+
+
+@router.get("/claims/{claim_id}/recommendation")
+def get_latest_recommendation(claim_id: str, clinic_id: int = Depends(get_current_clinic), db: Session = Depends(get_db)):
+    claim = _get_claim_or_404(claim_id, clinic_id, db)
+    rec = (
+        db.query(models.Recommendation)
+        .filter(models.Recommendation.claim_id == claim.id)
+        .order_by(models.Recommendation.created_at.desc(), models.Recommendation.id.desc())
+        .first()
+    )
+    return {"recommendation": _recommendation_out(rec) if rec else None}
+
+
+@router.post("/claims/{claim_id}/recommendation")
+def generate_recommendation(claim_id: str, clinic_id: int = Depends(get_current_clinic), db: Session = Depends(get_db)):
+    claim = _get_claim_or_404(claim_id, clinic_id, db)
+    outcome = pipeline.generate_recommendation(db, claim)
+    return {
+        "stage": outcome.stage,
+        "detail": outcome.detail,
+        "decision": _decision_out(outcome.decision) if outcome.decision else None,
+        "recommendation": _recommendation_out(outcome.recommendation) if outcome.recommendation else None,
+        "escalation_id": outcome.escalation.escalation_id if outcome.escalation else None,
+    }
+
+
+@router.post("/claims/{claim_id}/recommendation/{recommendation_id}/approve")
+def approve_recommendation(
+    claim_id: str,
+    recommendation_id: int,
+    clinic_id: int = Depends(get_current_clinic),
+    db: Session = Depends(get_db),
+):
+    claim = _get_claim_or_404(claim_id, clinic_id, db)
+    rec = (
+        db.query(models.Recommendation)
+        .filter(models.Recommendation.id == recommendation_id, models.Recommendation.claim_id == claim.id)
+        .first()
+    )
+    if not rec:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    if rec.approval_status != pipeline.STATUS_PENDING:
+        raise HTTPException(status_code=409, detail=f"Recommendation is not pending approval (status={rec.approval_status})")
+
+    outcome = pipeline.decide_recommendation(db, claim, rec, approved=True)
+    return {
+        "recommendation": _recommendation_out(outcome.recommendation),
+        "decision": _decision_out(outcome.decision),
+        "execution": _execution_out(outcome.execution),
+        "execution_decision": _decision_out(outcome.execution_decision) if outcome.execution_decision else None,
+        "escalation_id": outcome.escalation.escalation_id if outcome.escalation else None,
+        "activity": _activity_out(outcome.activity),
+    }
+
+
+@router.post("/claims/{claim_id}/recommendation/{recommendation_id}/decline")
+def decline_recommendation(
+    claim_id: str,
+    recommendation_id: int,
+    clinic_id: int = Depends(get_current_clinic),
+    db: Session = Depends(get_db),
+):
+    claim = _get_claim_or_404(claim_id, clinic_id, db)
+    rec = (
+        db.query(models.Recommendation)
+        .filter(models.Recommendation.id == recommendation_id, models.Recommendation.claim_id == claim.id)
+        .first()
+    )
+    if not rec:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    if rec.approval_status != pipeline.STATUS_PENDING:
+        raise HTTPException(status_code=409, detail=f"Recommendation is not pending approval (status={rec.approval_status})")
+
+    outcome = pipeline.decide_recommendation(db, claim, rec, approved=False)
+    return {
+        "recommendation": _recommendation_out(outcome.recommendation),
+        "decision": _decision_out(outcome.decision),
+        "execution": _execution_out(outcome.execution),
+        "execution_decision": _decision_out(outcome.execution_decision) if outcome.execution_decision else None,
+        "escalation_id": outcome.escalation.escalation_id if outcome.escalation else None,
+        "activity": _activity_out(outcome.activity),
+    }
+
+
+@router.get("/claims/{claim_id}/activity")
+def get_claim_activity(claim_id: str, clinic_id: int = Depends(get_current_clinic), db: Session = Depends(get_db)):
+    claim = _get_claim_or_404(claim_id, clinic_id, db)
+    logs = (
+        db.query(models.ActivityLog)
+        .filter(models.ActivityLog.claim_id == claim.id)
+        .order_by(models.ActivityLog.created_at.desc(), models.ActivityLog.id.desc())
+        .all()
+    )
+    return {"items": [_activity_out(log) for log in logs]}

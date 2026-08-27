@@ -141,8 +141,12 @@ def _validate_input(claim_id, issues, risk_score, risk_level, claim_context) -> 
     return None
 
 
-def _default_client() -> anthropic.Anthropic:
+def _default_client():
     settings = get_settings()
+    if settings.mock_anthropic:
+        from app.testing.fake_anthropic import FakeAnthropicClient
+
+        return FakeAnthropicClient()
     if settings.anthropic_api_key:
         return anthropic.Anthropic(api_key=settings.anthropic_api_key)
     return anthropic.Anthropic()  # falls back to the SDK's own env resolution

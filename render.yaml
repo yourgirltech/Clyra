@@ -1,0 +1,49 @@
+# Render Blueprint for the Clyra backend + database.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Apply from the Render dashboard: New > Blueprint, point it at this repo.
+# The frontend is NOT deployed here — it lives on Netlify (see frontend/netlify.toml).
+#
+# Secrets are intentionally NOT in this file. `sync: false` vars must be set
+# once in the Render dashboard (Environment tab) after the first apply.
+
+databases:
+  - name: clyra-db
+    plan: free
+    databaseName: clyra
+    user: clyra
+    # Free Postgres instances on Render expire 30 days after creation.
+    # For the demo that is fine; re-provision and re-seed when it lapses.
+
+services:
+  - type: web
+    name: clyra-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    region: oregon
+    branch: main
+    # `alembic upgrade head` runs on every boot so a fresh database (or a new
+    # migration) is applied without a manual step. It is a fast no-op once the
+    # schema is current. Move it to a paid pre-deploy command if boot latency
+    # ever matters.
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.5"
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clyra-db
+          property: connectionString
+      # Comma-separated list of allowed browser origins. Set this to the live
+      # Netlify URL (and any custom domain) once the frontend is deployed.
+      - key: CORS_ORIGINS
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

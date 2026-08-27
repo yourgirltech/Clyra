@@ -95,6 +95,19 @@ class Recommendation(Base):
     claim_id = Column(Integer, ForeignKey("claims.id"), nullable=False)
     note = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # 03-recommendation-agent output (docs/agents/03-recommendation-agent.md)
+    action_type = Column(String(32), nullable=True, index=True)
+    confidence = Column(String(16), nullable=True)  # "High" | "Medium" | "Low"
+    low_confidence = Column(Integer, nullable=False, default=0)  # 0/1 as boolean
+    cited_issue_types = Column(Text, nullable=True)  # JSON-encoded list[str]
+    secondary_options = Column(Text, nullable=True)  # JSON-encoded list[dict]
+    raw_model_response = Column(Text, nullable=True)
+    # Human-review lifecycle. "pending" awaits an approve/decline decision;
+    # "escalated" means 03 itself reported low_confidence, so this was never
+    # offered to a human as a one-click approval (rule 13) — approve/decline
+    # only ever apply to a "pending" row.
+    approval_status = Column(String(16), nullable=False, default="pending", index=True)
+    decided_at = Column(DateTime, nullable=True)
 
 
 class FollowUp(Base):
@@ -103,6 +116,21 @@ class FollowUp(Base):
     claim_id = Column(Integer, ForeignKey("claims.id"), nullable=False)
     note = Column(Text, nullable=False)
     due_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PayerReminder(Base):
+    """A payer-reminder action executed by 05-reminder-agent
+    (docs/agents/05-reminder-agent.md). Synthetic-data demo: "sent" means
+    simulated and durably recorded here, not actually delivered anywhere."""
+
+    __tablename__ = "payer_reminders"
+    id = Column(Integer, primary_key=True, index=True)
+    claim_id = Column(Integer, ForeignKey("claims.id"), nullable=False)
+    target = Column(String(128), nullable=False)  # payer/system the reminder targets
+    content = Column(Text, nullable=False)
+    reference_number = Column(String(64), nullable=True)
+    sent_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

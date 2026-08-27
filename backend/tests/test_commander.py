@@ -254,23 +254,24 @@ def test_rule12_missing_recommendation_defaults_to_not_low_confidence():
 
 
 # ---------------------------------------------------------------------------
-# Rules 14/15 — Phase 4 build-scope carve-out: 04/05 don't exist yet, so an
-# approved follow_up/payer_reminder escalates instead of dispatching.
+# Rules 14/15 — an approved follow_up/payer_reminder dispatches to the real
+# executor agent. (Phase 4 briefly carved these out to escalation while 04/05
+# didn't exist yet; both are implemented now, so the rule table matches its
+# original, final design again — see docs/agents/00-commander.md.)
 # ---------------------------------------------------------------------------
 
-def test_rule14_follow_up_approved_falls_back_to_escalation_not_04():
+def test_rule14_follow_up_approved_dispatches_to_04():
     claim = make_claim(latest_recommendation=make_recommendation(action_type="follow_up"))
     decision = commander_route(claim, make_trigger("human_approved"))
-    assert decision == CommanderDecision(AGENT_ESCALATION, "agent_not_yet_implemented", 14)
-    # Explicitly not the real executor agent — it isn't built in Phase 4.
-    assert decision.decision != AGENT_FOLLOWUP
+    assert decision == CommanderDecision(AGENT_FOLLOWUP, "execute_followup", 14)
+    assert decision.decision != AGENT_ESCALATION
 
 
-def test_rule15_payer_reminder_approved_falls_back_to_escalation_not_05():
+def test_rule15_payer_reminder_approved_dispatches_to_05():
     claim = make_claim(latest_recommendation=make_recommendation(action_type="payer_reminder"))
     decision = commander_route(claim, make_trigger("human_approved"))
-    assert decision == CommanderDecision(AGENT_ESCALATION, "agent_not_yet_implemented", 15)
-    assert decision.decision != AGENT_REMINDER
+    assert decision == CommanderDecision(AGENT_REMINDER, "execute_reminder", 15)
+    assert decision.decision != AGENT_ESCALATION
 
 
 # ---------------------------------------------------------------------------

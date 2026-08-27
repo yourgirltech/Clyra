@@ -43,7 +43,6 @@ SEVERITY_BY_REASON = {
     "reasoning_error": "medium",
     "recommendation_error": "medium",
     "low_confidence": "low",
-    "agent_not_yet_implemented": "high",  # already approved, just can't execute yet
     "followup_execution_failed": "high",
     "reminder_execution_failed": "high",
     "unclassified_trigger": "medium",
@@ -57,8 +56,6 @@ ORIGIN_BY_RULE = {
     9: "02-reasoning-agent",
     11: "03-recommendation-agent",
     13: "03-recommendation-agent",
-    14: "03-recommendation-agent (approved; 04-followup-agent not yet implemented)",
-    15: "03-recommendation-agent (approved; 05-reminder-agent not yet implemented)",
     17: "04-followup-agent",
     18: "05-reminder-agent",
     20: "commander",

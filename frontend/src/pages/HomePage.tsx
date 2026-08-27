@@ -111,16 +111,16 @@ export function HomePage() {
         <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:py-24">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] text-blue-700">
-              AI Claims Operations
+              AI Health Insurance Claims Operations
             </span>
             <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-slate-900 md:text-5xl">
-              Clear, explainable claim risk —{' '}
+              Clear, explainable health insurance claim risk —{' '}
               <span className="text-blue-600">decided by your team.</span>
             </h1>
             <p className="mt-5 max-w-lg text-lg text-slate-500">
-              Clyra helps healthcare billing and revenue-cycle teams triage claims with deterministic
-              risk scoring and AI-guided recommendations. Every consequential action still requires
-              human approval.
+              Clyra helps health insurance billing and revenue-cycle teams triage health insurance
+              claims with deterministic risk scoring and AI-guided recommendations. Every
+              consequential action still requires human approval.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link

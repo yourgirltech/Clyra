@@ -1,7 +1,7 @@
 # 04 — Follow-up Agent
 
 ## Status
-Planning document. No runtime has been chosen.
+Implemented. `backend/app/agents/followup.py` (`run_followup`) is a plain Python function, same pattern as 01/02/03/06/07 — no n8n, no real external delivery. This is a synthetic-data demo: "executing" a follow-up means simulating the action and creating a real, durable `FollowUp` + `ActivityLog` record, not actually contacting anyone. Wired into Commander's dispatch (`app.agents.dispatch.route_and_dispatch`) at rule 14, and into the approval flow (`app.services.pipeline.decide_recommendation`), which fixes the follow-up's content (note text, due date) at approval time from the recommendation's own rationale and the claim's payer config — this agent never drafts that content itself. Covered by `backend/tests/test_followup.py` (success, transient retry-then-success, transient-exhausted, missing-fields, revoked-approval) and the full-chain tests in `backend/tests/test_human_review.py`.
 
 ## Role
 The Follow-up Agent carries out a follow-up action that a human has already approved. It does not decide *whether* to follow up, and it does not decide *what* the follow-up says — those decisions were made by [03-recommendation-agent](./03-recommendation-agent.md) and then approved by a human. This agent's job is narrow and mechanical: execute exactly the approved action, record that it happened, and report success or failure honestly.

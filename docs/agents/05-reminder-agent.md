@@ -1,7 +1,7 @@
 # 05 — Reminder Agent
 
 ## Status
-Planning document. No runtime has been chosen.
+Implemented. `backend/app/agents/reminder.py` (`run_reminder`) is a plain Python function, same pattern as 01/02/03/04/06/07 — no n8n, no real payer channel. This is a synthetic-data demo: "sending" a reminder means simulating the action and creating a real, durable `PayerReminder` + `ActivityLog` record, not actually delivering anything to a payer. Wired into Commander's dispatch (`app.agents.dispatch.route_and_dispatch`) at rule 15, and into the approval flow (`app.services.pipeline.decide_recommendation`), which fixes the reminder's content (target, message, reference number) at approval time from the recommendation's own rationale and the claim's actual payer/claim_id — this agent never drafts that content itself. Covered by `backend/tests/test_reminder.py` (success, transient retry-then-success, transient-exhausted, missing-fields, revoked-approval) and the full-chain tests in `backend/tests/test_human_review.py`.
 
 ## Role
 The Reminder Agent carries out a payer-reminder action that a human has already approved — e.g., generating and logging a reminder/inquiry directed at the payer about a claim's status. Same shape as [04-followup-agent](./04-followup-agent.md): it executes an already-decided, already-approved action mechanically, it does not decide whether or what to remind, and it does not exercise any judgment about the claim itself.
