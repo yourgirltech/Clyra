@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+@theme {
+  --font-sans: Inter, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', Inter, 'Segoe UI', sans-serif;
+}
+
 :root {
   font-family: Inter, 'Segoe UI', sans-serif;
   line-height: 1.5;
