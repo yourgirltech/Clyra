@@ -21,7 +21,7 @@ A pure decision node — no tools, no content generation. It reads the claim's c
 - **07-assistant-agent** — the tool-calling conversational agent exposed through the AI Assistant UI. Can call the same tools (rule engine, claim lookup, dashboard metrics) on demand to answer ad-hoc operator questions, under the same guardrails as the routed agents.
 
 ### Where the agents run
-Whether these agents execute inside a Python orchestrator or as n8n workflow nodes is an open Phase 4 decision, not yet made. `langgraph`/`langchain-anthropic` are only installed if we choose the Python-orchestrator path — there is no LangGraph dependency in this design.
+Decided and implemented: all agents run in the Python backend (`backend/app/agents/`), dispatched by the Commander through `dispatch.py`. 02/03/07 call the Anthropic SDK directly, with no LangGraph or LangChain dependency. Tests swap in `app/testing/fake_anthropic.py` for deterministic offline runs.
 
 ## Guardrails
 - No real PHI or production data — synthetic-only reference data and sample claims.
