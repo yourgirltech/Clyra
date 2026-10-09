@@ -2,7 +2,8 @@
 
 **An AI claims-operations assistant for U.S. healthcare billing teams.** Clyra finds the insurance claims that need attention, explains why, and recommends the next action. A human approves before anything is executed.
 
-> Demo environment: all data is synthetic, and no real PHI is used.
+> **In production for a client.** The live system runs on the client's own domain and isn't linked here. This repository is the build record: the full source, with client data, credentials and URLs removed.
+> Data in this repo is synthetic; no real PHI is included.
 
 Billing staff at small and mid-sized clinics spend hours on delayed, denied and incomplete claims. They inspect records by hand, work out what went wrong and chase payers. Clyra answers three questions for every claim: **What needs my attention? Why? What should I do next?**
 
@@ -50,7 +51,7 @@ cd backend && pytest -q --ignore-glob="*_live.py"
 
 ## Stack
 
-FastAPI · SQLAlchemy + Alembic · PostgreSQL · Anthropic Claude · React + TypeScript + Vite + Tailwind · Playwright. Deploy configs for Render (backend + database, `render.yaml`) and Netlify (frontend) are included.
+FastAPI · SQLAlchemy + Alembic · PostgreSQL · Anthropic Claude · React + TypeScript + Vite + Tailwind · Playwright. Deployed with Render (backend + database, `render.yaml`) and Netlify (frontend).
 
 ## Run locally
 
